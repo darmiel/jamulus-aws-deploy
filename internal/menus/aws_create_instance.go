@@ -5,7 +5,9 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/briandowns/spinner"
 	"log"
+	"time"
 )
 
 type CreateInstanceEC2Menu *EC2Menu
@@ -97,28 +99,90 @@ func NewCreateInstanceMenu(ec *ec2.EC2, parent *Menu) CreateInstanceEC2Menu {
 			}
 		}
 
-		// TODO: security group
+		// security group
+		var securityGroupId *string
+		securityGroup := "JamulusSVR"
+		groups, err := ec.DescribeSecurityGroups(&ec2.DescribeSecurityGroupsInput{})
+		if err != nil {
+			log.Fatalln("Error reading security groups:", err)
+			return
+		}
+		for _, sg := range groups.SecurityGroups {
+			if *sg.GroupName == securityGroup {
+				securityGroupId = sg.GroupId
+				break
+			}
+		}
 
+		s := spinner.New(spinner.CharSets[9], 150*time.Millisecond)
+
+		// create security group
+		if securityGroupId == nil {
+			s.Prefix = "🤔 Creating security group ... "
+			s.FinalMSG = "😁 Created security group!"
+			s.Start()
+
+			// create security group
+			cresp, err := ec.CreateSecurityGroup(&ec2.CreateSecurityGroupInput{
+				Description:       aws.String("Allows SSH and the Jamulus default port"),
+				GroupName:         aws.String("JamulusSVR"),
+				TagSpecifications: nil,
+				VpcId:             nil,
+			})
+			if err != nil {
+				log.Fatalln("Error creating security group:", err)
+				return
+			}
+			securityGroupId = cresp.GroupId
+
+			// assign rules
+			if _, err := ec.AuthorizeSecurityGroupIngress(&ec2.AuthorizeSecurityGroupIngressInput{
+				GroupId: securityGroupId,
+				IpPermissions: []*ec2.IpPermission{
+					(&ec2.IpPermission{}).
+						SetIpProtocol("tcp").
+						SetFromPort(22).
+						SetToPort(22).
+						SetIpRanges([]*ec2.IpRange{
+							(&ec2.IpRange{}).
+								SetCidrIp("0.0.0.0/0"),
+						}),
+					(&ec2.IpPermission{}).
+						SetIpProtocol("udp").
+						SetFromPort(22124).
+						SetToPort(22124).
+						SetIpRanges([]*ec2.IpRange{
+							(&ec2.IpRange{}).
+								SetCidrIp("0.0.0.0/0"),
+						}),
+				},
+			}); err != nil {
+				log.Fatalln("Error assigning rules to security group:", err)
+				return
+			}
+			s.Stop()
+			fmt.Println()
+		}
+
+		s.Prefix = "🤔 Crating instance ..."
+		s.FinalMSG = "😁 Created instance!"
+		s.Start()
 		// create instance
-		log.Println("Creating instance ...")
 		runInput := &ec2.RunInstancesInput{
 			ImageId:          aws.String(CreateAMI),
 			InstanceType:     aws.String(instanceType),
 			MinCount:         aws.Int64(1),
 			MaxCount:         aws.Int64(1),
 			KeyName:          aws.String(keyName),
-			SecurityGroupIds: []*string{aws.String("sg-807df1e1")}, // default
+			SecurityGroupIds: []*string{securityGroupId},
 		}
-
 		rresp, err := ec.RunInstances(runInput)
 		if err != nil {
 			log.Fatalln("Error creating instance:", err)
 			return
 		}
 		instance := rresp.Instances[0]
-
 		// attach tag
-		log.Println("Attaching tag to", *instance.InstanceId, "...")
 		tagInput := &ec2.CreateTagsInput{
 			Resources: aws.StringSlice([]string{*instance.InstanceId}),
 			Tags: []*ec2.Tag{
@@ -131,8 +195,8 @@ func NewCreateInstanceMenu(ec *ec2.EC2, parent *Menu) CreateInstanceEC2Menu {
 		if _, err := ec.CreateTags(tagInput); err != nil {
 			log.Fatalln("Error attaching tags:", err)
 		}
-
-		log.Println("✅ Created!")
+		s.Stop()
+		fmt.Println()
 
 		NewInstallJamulusMenu(ec, instance, menu.Menu).Print()
 	}
