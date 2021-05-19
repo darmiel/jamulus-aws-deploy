@@ -8,9 +8,10 @@ import (
 )
 
 const (
-	StartInstance     = "🔌 | Start"
-	StopInstance      = "🔻 | Shut Down"
-	TerminateInstance = "🗑 | Terminate"
+	StartInstance        = "🔌 | Start"
+	StopInstance         = "🔻 | Shut Down"
+	TerminateInstance    = "🗑 | Terminate"
+	DebugConnectInstance = "🐛 | Start Session"
 )
 
 type ControlInstanceEC2Menu *EC2Menu
@@ -37,6 +38,9 @@ func NewControlInstanceMenu(ec *ec2.EC2, instance *ec2.Instance, parent *Menu) C
 			// stop instance
 			if state != ec2.InstanceStateNameStopping && state != ec2.InstanceStateNameStopped {
 				options = append(options, StopInstance)
+			}
+			if state == ec2.InstanceStateNameRunning {
+				options = append(options, DebugConnectInstance)
 			}
 			// terminate instance
 			options = append(options, TerminateInstance)
@@ -86,6 +90,9 @@ func NewControlInstanceMenu(ec *ec2.EC2, instance *ec2.Instance, parent *Menu) C
 				return
 			}
 			log.Println("Done!")
+			break
+		case DebugConnectInstance:
+			NewInstallJamulusMenu(ec, instance, menu.Menu).Print()
 			break
 		case GoBack:
 			break

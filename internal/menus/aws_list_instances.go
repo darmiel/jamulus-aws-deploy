@@ -63,7 +63,6 @@ func NewListInstancesEC2Menu(ec *ec2.EC2) ListInstancesEC2Menu {
 
 		opt := make(map[string]*ec2.Instance)
 		for _, r := range instances.Reservations {
-			fmt.Println("*", *r.ReservationId)
 			for _, i := range r.Instances {
 				opt[fmt.Sprintf("[%s] %s [running for %s]",
 					GetPrettyState(i.State),
@@ -110,6 +109,7 @@ func NewListInstancesEC2Menu(ec *ec2.EC2) ListInstancesEC2Menu {
 			}
 			// print control menu
 			NewControlInstanceMenu(ec, instance, menu.Menu).Print()
+			return
 		}
 	}
 	return menu
