@@ -70,10 +70,11 @@ func NewListInstancesEC2Menu(ec *ec2.EC2) ListInstancesEC2Menu {
 					isDone = "🐣 "
 				}
 
-				opt[fmt.Sprintf("%s[%s] %s [running for %s]",
+				opt[fmt.Sprintf("%s[%s] %s (%s) [running for %s]",
 					isDone,
 					GetPrettyState(i.State),
 					*i.InstanceId,
+					*i.PublicIpAddress,
 					time.Since(*i.LaunchTime).String())] = i
 			}
 		}
