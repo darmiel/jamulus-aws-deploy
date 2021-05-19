@@ -67,7 +67,6 @@ func NewControlInstanceMenu(ec *ec2.EC2, instance *ec2.Instance, parent *Menu) C
 				return
 			}
 			log.Println("Done!")
-			break
 
 		case StopInstance:
 			log.Println("Stopping", *instance.InstanceId, "...")
@@ -79,7 +78,6 @@ func NewControlInstanceMenu(ec *ec2.EC2, instance *ec2.Instance, parent *Menu) C
 				return
 			}
 			log.Println("Done!")
-			break
 
 		case StartInstance:
 			log.Println("Starting", *instance.InstanceId, "...")
@@ -91,12 +89,8 @@ func NewControlInstanceMenu(ec *ec2.EC2, instance *ec2.Instance, parent *Menu) C
 				return
 			}
 			log.Println("Done!")
-			break
 		case DebugConnectInstance:
 			NewInstallJamulusMenu(ec, instance, &tpl.CreateInstanceTemplate{}, menu.Menu).Print()
-			break
-		case GoBack:
-			break
 		}
 
 		menu.Back()

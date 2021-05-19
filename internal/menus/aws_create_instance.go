@@ -110,19 +110,18 @@ func NewCreateInstanceMenu(ec *ec2.EC2, parent *Menu) CreateInstanceEC2Menu {
 				log.Fatalln("Error writing cert:", err)
 				return
 			}
-		} else {
-			if temp.KeyPair == "" {
-				opts := make([]string, len(resp.KeyPairs))
-				i := 0
-				for _, pair := range resp.KeyPairs {
-					opts[i] = *pair.KeyName
-					i++
-				}
-				q = &survey.Select{Message: "Select Key-Pair", Options: opts}
-				if err := survey.AskOne(q, &temp.KeyPair); err != nil {
-					log.Fatalln("Error reading key pair from input:", err)
-					return
-				}
+		} else if temp.KeyPair == "" {
+			opts := make([]string, len(resp.KeyPairs))
+			i := 0
+			for _, pair := range resp.KeyPairs {
+				opts[i] = *pair.KeyName
+				i++
+			}
+			q = &survey.Select{Message: "Select Key-Pair", Options: opts}
+			if err := survey.AskOne(q, &temp.KeyPair); err != nil {
+				log.Fatalln("Error reading key pair from input:", err)
+				return
+
 			}
 		}
 

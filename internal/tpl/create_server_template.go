@@ -31,6 +31,7 @@ func SelectTemplate() *CreateInstanceTemplate {
 	// check if template folder exists
 	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
 		// create dir
+		// TODO: change me (0755)
 		if err := os.Mkdir("templates", 0755); err != nil {
 			log.Fatalln("Error creating templates folder:", err)
 			return nil

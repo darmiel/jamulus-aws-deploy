@@ -74,7 +74,7 @@ func NewListInstancesEC2Menu(ec *ec2.EC2) ListInstancesEC2Menu {
 					isDone,
 					GetPrettyState(i.State),
 					*i.InstanceId,
-					time.Now().Sub(*i.LaunchTime).String())] = i
+					time.Since(*i.LaunchTime).String())] = i
 			}
 		}
 
