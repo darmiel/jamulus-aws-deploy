@@ -5,6 +5,7 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/darmiel/jamulus-aws-deploy/internal/tpl"
 	"log"
 	"time"
 )
@@ -28,7 +29,7 @@ func GetPrettyState(state *ec2.InstanceState) string {
 }
 
 const (
-	Refresh   = "🚀️| Refresh"
+	Refresh   = "🚀️ | Refresh"
 	CreateNew = "🎉 | Deploy new instance"
 	GoBack    = "👋 | Go Back"
 )
@@ -64,7 +65,13 @@ func NewListInstancesEC2Menu(ec *ec2.EC2) ListInstancesEC2Menu {
 		opt := make(map[string]*ec2.Instance)
 		for _, r := range instances.Reservations {
 			for _, i := range r.Instances {
-				opt[fmt.Sprintf("[%s] %s [running for %s]",
+				isDone := ""
+				if tpl.Is(i, tpl.JamulusStatusCreated) {
+					isDone = "🐣 "
+				}
+
+				opt[fmt.Sprintf("%s[%s] %s [running for %s]",
+					isDone,
 					GetPrettyState(i.State),
 					*i.InstanceId,
 					time.Now().Sub(*i.LaunchTime).String())] = i

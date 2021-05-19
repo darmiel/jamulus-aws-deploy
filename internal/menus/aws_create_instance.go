@@ -6,7 +6,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/briandowns/spinner"
+	"github.com/darmiel/jamulus-aws-deploy/internal/tpl"
 	"log"
+	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -14,6 +17,9 @@ type CreateInstanceEC2Menu *EC2Menu
 
 const (
 	CreateAMI = "ami-043097594a7df80ec"
+
+	DefaultKeyPair       = "jamulus-cert"
+	DefaultSecurityGroup = "jamulus-security-group"
 )
 
 func NewCreateInstanceMenu(ec *ec2.EC2, parent *Menu) CreateInstanceEC2Menu {
@@ -22,6 +28,11 @@ func NewCreateInstanceMenu(ec *ec2.EC2, parent *Menu) CreateInstanceEC2Menu {
 		Menu: &Menu{Parent: parent},
 	}
 	menu.Print = func() {
+		temp := tpl.SelectTemplate()
+		if temp == nil {
+			return
+		}
+
 		var q survey.Prompt
 		q = &survey.Confirm{Message: "Create (another) instance?", Default: false}
 		var createNew bool
@@ -35,97 +46,111 @@ func NewCreateInstanceMenu(ec *ec2.EC2, parent *Menu) CreateInstanceEC2Menu {
 			return
 		}
 
-		// TODO: Implement template
-
-		// ask for image
-		var instanceType string
-		q = &survey.Select{
-			Message: "Select instance type",
-			Options: []string{
-				ec2.InstanceTypeT2Micro,
-				ec2.InstanceTypeC5Large,
-				ec2.InstanceTypeC5Xlarge,
-				ec2.InstanceTypeC52xlarge,
-			},
+		// INSTANCE TYPE
+		if temp.InstanceType == "" {
+			q = &survey.Select{
+				Message: "Select instance type",
+				Options: []string{
+					ec2.InstanceTypeT2Micro,
+					ec2.InstanceTypeC5Large,
+					ec2.InstanceTypeC5Xlarge,
+					ec2.InstanceTypeC52xlarge,
+				},
+			}
+			if err := survey.AskOne(q, &temp.InstanceType); err != nil {
+				log.Fatalln("Error reading instance type:", err)
+				return
+			}
 		}
-		if err := survey.AskOne(q, &instanceType); err != nil {
-			log.Fatalln("Error reading intance type:", err)
-			return
-		}
 
-		// ask for key name
-		var keyName string
-		// read key names
+		// KEYPAIR NAME
 		resp, err := ec.DescribeKeyPairs(&ec2.DescribeKeyPairsInput{})
 		if err != nil {
 			log.Fatalln("Error reading your key pairs from aws:", err)
 			return
 		}
 		if len(resp.KeyPairs) == 0 {
-			keyName = ""
-
-			log.Println("WARNING :: You don't have any key pairs on your AWS account")
-			log.Println("WARNING :: If you don't link a key pair to the server,")
-			log.Println("WARNING :: we won't be able to connect!")
-			log.Println("WARNING :: Do you really want to create an instance anyways?")
-
-			fmt.Println()
-			log.Println("WARNING :: You can create a key pair here:")
-			log.Println("WARNING :: https://console.aws.amazon.com/ec2/v2/home#KeyPairs:")
-			fmt.Println()
-
-			q = &survey.Confirm{Message: "Create Instance Anyways?", Default: false}
-			var createAnyways bool
-			if err := survey.AskOne(q, &createAnyways); err != nil {
-				log.Fatalln("Error reading your answer:", err)
+			if temp.KeyPair == "" {
+				temp.KeyPair = DefaultKeyPair
+			}
+			// ask to create key pair?
+			pair, err := ec.CreateKeyPair(&ec2.CreateKeyPairInput{
+				KeyName: aws.String(temp.KeyPair),
+			})
+			if err != nil {
+				log.Fatalln("Error creating key pair:", err)
 				return
 			}
-			if !createAnyways {
-				menu.Back()
+
+			// save key
+			var outPath string
+			if temp.KeyPairPath != "" {
+				if _, err := os.Stat(temp.KeyPairPath); os.IsNotExist(err) {
+					outPath = temp.KeyPairPath
+				}
+			}
+
+			// ask for path
+			if outPath == "" {
+				q = &survey.Input{
+					Message: "Path of your key pair",
+					Suggest: func(toComplete string) []string {
+						files, _ := filepath.Glob(toComplete + "*")
+						return files
+					},
+				}
+				if err := survey.AskOne(q, &outPath); err != nil {
+					log.Fatalln("Error reading your answer:", err)
+					return
+				}
+			}
+
+			// save to path
+			if err := os.WriteFile(outPath, []byte(*pair.KeyMaterial), 0644); err != nil {
+				log.Fatalln("Error writing cert:", err)
 				return
 			}
-			log.Println("Okay. Good luck!")
 		} else {
-			opts := make([]string, len(resp.KeyPairs))
-			i := 0
-			for _, pair := range resp.KeyPairs {
-				opts[i] = *pair.KeyName
-				i++
-			}
-			q = &survey.Select{Message: "Select Key-Pair", Options: opts}
-			if err := survey.AskOne(q, &keyName); err != nil {
-				log.Fatalln("Error reading key pair from input:", err)
-				return
+			if temp.KeyPair == "" {
+				opts := make([]string, len(resp.KeyPairs))
+				i := 0
+				for _, pair := range resp.KeyPairs {
+					opts[i] = *pair.KeyName
+					i++
+				}
+				q = &survey.Select{Message: "Select Key-Pair", Options: opts}
+				if err := survey.AskOne(q, &temp.KeyPair); err != nil {
+					log.Fatalln("Error reading key pair from input:", err)
+					return
+				}
 			}
 		}
 
 		// security group
-		var securityGroupId *string
-		securityGroup := "JamulusSVR"
 		groups, err := ec.DescribeSecurityGroups(&ec2.DescribeSecurityGroupsInput{})
 		if err != nil {
 			log.Fatalln("Error reading security groups:", err)
 			return
 		}
 		for _, sg := range groups.SecurityGroups {
-			if *sg.GroupName == securityGroup {
-				securityGroupId = sg.GroupId
+			if *sg.GroupName == DefaultSecurityGroup {
+				temp.SecurityGroupID = *sg.GroupId
 				break
 			}
 		}
 
-		s := spinner.New(spinner.CharSets[9], 150*time.Millisecond)
+		s := spinner.New(spinner.CharSets[26], 300*time.Millisecond)
 
 		// create security group
-		if securityGroupId == nil {
-			s.Prefix = "🤔 Creating security group ... "
+		if temp.SecurityGroupID == "" {
+			s.Prefix = "🤔 Creating security group "
 			s.FinalMSG = "😁 Created security group!"
 			s.Start()
 
 			// create security group
-			cresp, err := ec.CreateSecurityGroup(&ec2.CreateSecurityGroupInput{
+			createResponse, err := ec.CreateSecurityGroup(&ec2.CreateSecurityGroupInput{
 				Description:       aws.String("Allows SSH and the Jamulus default port"),
-				GroupName:         aws.String("JamulusSVR"),
+				GroupName:         aws.String(DefaultSecurityGroup),
 				TagSpecifications: nil,
 				VpcId:             nil,
 			})
@@ -133,11 +158,11 @@ func NewCreateInstanceMenu(ec *ec2.EC2, parent *Menu) CreateInstanceEC2Menu {
 				log.Fatalln("Error creating security group:", err)
 				return
 			}
-			securityGroupId = cresp.GroupId
+			temp.SecurityGroupID = *createResponse.GroupId
 
-			// assign rules
+			// assign rules to security group
 			if _, err := ec.AuthorizeSecurityGroupIngress(&ec2.AuthorizeSecurityGroupIngressInput{
-				GroupId: securityGroupId,
+				GroupId: &temp.SecurityGroupID,
 				IpPermissions: []*ec2.IpPermission{
 					(&ec2.IpPermission{}).
 						SetIpProtocol("tcp").
@@ -164,17 +189,18 @@ func NewCreateInstanceMenu(ec *ec2.EC2, parent *Menu) CreateInstanceEC2Menu {
 			fmt.Println()
 		}
 
-		s.Prefix = "🤔 Crating instance ..."
+		s.Prefix = "🤔 Crating instance "
 		s.FinalMSG = "😁 Created instance!"
 		s.Start()
+
 		// create instance
 		runInput := &ec2.RunInstancesInput{
 			ImageId:          aws.String(CreateAMI),
-			InstanceType:     aws.String(instanceType),
+			InstanceType:     aws.String(temp.InstanceType),
 			MinCount:         aws.Int64(1),
 			MaxCount:         aws.Int64(1),
-			KeyName:          aws.String(keyName),
-			SecurityGroupIds: []*string{securityGroupId},
+			KeyName:          aws.String(temp.KeyPair),
+			SecurityGroupIds: []*string{&temp.SecurityGroupID},
 		}
 		rresp, err := ec.RunInstances(runInput)
 		if err != nil {
@@ -182,7 +208,8 @@ func NewCreateInstanceMenu(ec *ec2.EC2, parent *Menu) CreateInstanceEC2Menu {
 			return
 		}
 		instance := rresp.Instances[0]
-		// attach tag
+
+		// attach tags
 		tagInput := &ec2.CreateTagsInput{
 			Resources: aws.StringSlice([]string{*instance.InstanceId}),
 			Tags: []*ec2.Tag{
@@ -190,15 +217,20 @@ func NewCreateInstanceMenu(ec *ec2.EC2, parent *Menu) CreateInstanceEC2Menu {
 					Key:   aws.String("Jamulus"),
 					Value: aws.String("Yes"),
 				},
+				{
+					Key:   aws.String(tpl.JamulusStatusHeader),
+					Value: aws.String(tpl.JamulusStatusCreated),
+				},
 			},
 		}
 		if _, err := ec.CreateTags(tagInput); err != nil {
 			log.Fatalln("Error attaching tags:", err)
 		}
+
 		s.Stop()
 		fmt.Println()
 
-		NewInstallJamulusMenu(ec, instance, menu.Menu).Print()
+		NewInstallJamulusMenu(ec, instance, temp, menu.Menu).Print()
 	}
 	return menu
 }

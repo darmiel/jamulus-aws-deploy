@@ -4,6 +4,7 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/darmiel/jamulus-aws-deploy/internal/tpl"
 	"log"
 )
 
@@ -92,7 +93,7 @@ func NewControlInstanceMenu(ec *ec2.EC2, instance *ec2.Instance, parent *Menu) C
 			log.Println("Done!")
 			break
 		case DebugConnectInstance:
-			NewInstallJamulusMenu(ec, instance, menu.Menu).Print()
+			NewInstallJamulusMenu(ec, instance, &tpl.CreateInstanceTemplate{}, menu.Menu).Print()
 			break
 		case GoBack:
 			break
