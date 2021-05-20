@@ -3,9 +3,6 @@ package tpl
 import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/briandowns/spinner"
-	"golang.org/x/crypto/ssh"
-	"io/ioutil"
 	"log"
 	"time"
 )
@@ -28,6 +25,35 @@ func GetPrettyState(state *ec2.InstanceState) string {
 	return ""
 }
 
+func (t *CreateInstanceTemplate) WaitForHost(ec *ec2.EC2, instance *ec2.Instance) string {
+	var instanceHost string
+
+	// wait until instance is running
+	s := NewSpinner("🤔 Waiting for instance to be ready", "😁 Instance is running!")
+	for {
+		resp, err := ec.DescribeInstances(&ec2.DescribeInstancesInput{
+			InstanceIds: []*string{instance.InstanceId},
+		})
+		if err != nil {
+			log.Fatalln("Error reading instance:", err)
+			return ""
+		}
+		i := resp.Reservations[0].Instances[0]
+		if *i.State.Name != ec2.InstanceStateNameRunning {
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		instanceHost = *i.PublicDnsName
+		s.Prefix = fmt.Sprintf("🤔 Waiting for instance to be ready [%s] ", GetPrettyState(i.State))
+		break
+	}
+	s.Stop()
+	fmt.Println()
+
+	return instanceHost
+}
+
+/*
 func (t *CreateInstanceTemplate) OpenSession(ec *ec2.EC2, instance *ec2.Instance) (client *ssh.Client, err error) {
 	var data []byte
 	if data, err = ioutil.ReadFile(t.Instance.KeyPairPath); err != nil {
@@ -48,33 +74,6 @@ func (t *CreateInstanceTemplate) OpenSession(ec *ec2.EC2, instance *ec2.Instance
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
-
-	// wait until instance is running
-	s := spinner.New(spinner.CharSets[26], 300*time.Millisecond)
-	s.Prefix = "🤔 Waiting for instance to be ready "
-	s.FinalMSG = "😁 Instance is running!"
-	s.Start()
-
-	var host string
-	for {
-		resp, err := ec.DescribeInstances(&ec2.DescribeInstancesInput{
-			InstanceIds: []*string{instance.InstanceId},
-		})
-		if err != nil {
-			log.Fatalln("Error reading instance:", err)
-			return nil, err
-		}
-		i := resp.Reservations[0].Instances[0]
-		s.Prefix = fmt.Sprintf("🤔 Waiting for instance to be ready [%s] ", GetPrettyState(i.State))
-		if *i.State.Name == ec2.InstanceStateNameRunning {
-			host = *i.PublicDnsName
-			break
-		}
-		time.Sleep(2 * time.Second)
-	}
-
-	s.Stop()
-	fmt.Println()
 
 	// empty host?
 	if host == "" {
@@ -101,3 +100,4 @@ func (t *CreateInstanceTemplate) OpenSession(ec *ec2.EC2, instance *ec2.Instance
 	// start session
 	return
 }
+*/

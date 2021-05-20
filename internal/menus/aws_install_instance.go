@@ -3,8 +3,8 @@ package menus
 import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/darmiel/jamulus-aws-deploy/internal/tpl"
+	"github.com/melbahja/goph"
 	"log"
-	"os"
 )
 
 type InstallJamulusEC2Menu *EC2Menu
@@ -21,30 +21,29 @@ func NewInstallJamulusMenu(ec *ec2.EC2, instance *ec2.Instance, temp *tpl.Create
 			}
 		}
 
-		client, err := temp.OpenSession(ec, instance)
-		if err != nil {
-			log.Fatalln("Error opening client:", err)
+		host := temp.WaitForHost(ec, instance)
+		if host == "" {
+			log.Fatalln("empty host")
 			return
 		}
-		defer client.Close()
 
-		sess, err := client.NewSession()
+		key, err := goph.Key(temp.Instance.KeyPairPath, "")
 		if err != nil {
-			log.Fatalln("Error opening socket:", err)
+			log.Fatalln("error loading key:", err)
 			return
 		}
-		defer sess.Close()
 
-		const command = "sudo yum update -y; sudo yum install docker -y; sudo service docker start; sudo docker run --rm hello-world"
-
-		log.Println("Running command: `" + command + "`")
-
-		sess.Stdout = os.Stdout
-		sess.Stderr = os.Stderr
-
-		if err := sess.Run(command); err != nil {
-			log.Fatalln("error running command:", err)
+		ssh, err := goph.NewUnknown("ec2-user", host, key)
+		if err != nil {
+			log.Fatalln("error connecting:", err)
 			return
+		}
+
+		// TODO: commands here
+		log.Println(ssh.Run("whiami"))
+
+		if err := ssh.Close(); err != nil {
+			log.Fatalln("error closing connection: ", err)
 		}
 
 		log.Println("ok!")
