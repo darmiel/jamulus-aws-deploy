@@ -59,3 +59,16 @@ func (s *SSHC) ServiceRunning(service string) (resp bool, err error) {
 	}
 	return true, nil
 }
+
+func (s *SSHC) DockerContainerExists(id string) (resp bool, err error) {
+	_, err = s.Run(fmt.Sprintf("sudo docker inspect %s", id))
+	if err != nil {
+		if ee, ok := err.(*ssh.ExitError); ok {
+			if ee.ExitStatus() > 0 {
+				return false, nil
+			}
+		}
+		return false, err
+	}
+	return true, nil
+}

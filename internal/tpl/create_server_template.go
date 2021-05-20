@@ -18,26 +18,6 @@ const (
 	Permission     = 0755
 )
 
-const (
-	TemplateTypeInstance = iota
-	TemplateTypeJamulus
-)
-
-type CreateInstanceTemplate struct {
-	Template struct {
-		TemplateName        string
-		TemplateDescription string
-		TemplateType        uint64
-		IsTemplate          bool `json:"-"`
-	}
-	Instance struct {
-		InstanceType    string
-		KeyPair         string
-		KeyPairPath     string
-		SecurityGroupID string
-	}
-}
-
 func SelectTemplate(ty uint64) *CreateInstanceTemplate {
 	// check if template folder exists
 	if info, err := os.Stat(TemplateDir); err != nil || !info.IsDir() {
