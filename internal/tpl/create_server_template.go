@@ -77,7 +77,9 @@ func SelectTemplate(ty uint64) *CreateInstanceTemplate {
 	}
 
 	if resp == NoTemplate {
-		return &CreateInstanceTemplate{}
+		t := &CreateInstanceTemplate{}
+		t.Template.TemplateType = ty
+		return t
 	}
 
 	return opts[resp]

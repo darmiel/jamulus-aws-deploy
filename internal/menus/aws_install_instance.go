@@ -91,6 +91,7 @@ func NewInstallJamulusMenu(ec *ec2.EC2, instance *ec2.Instance, temp *tpl.Create
 		log.Println("Server set up.")
 
 		// TODO: start Jamulus setup
+		NewAskJamulusParamsMenu(menu.Menu).Print()
 	}
 	return menu
 }
