@@ -27,7 +27,10 @@ func NewCreateInstanceMenu(ec *ec2.EC2, parent *Menu) CreateInstanceEC2Menu {
 		}
 
 		var q survey.Prompt
-		q = &survey.Confirm{Message: "Create (another) instance?", Default: false}
+		q = &survey.Confirm{
+			Message: "Create (another) instance?",
+			Default: true,
+		}
 		var createNew bool
 		if err := survey.AskOne(q, &createNew); err != nil {
 			log.Fatalln("Error selecting:", err)
