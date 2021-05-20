@@ -10,24 +10,6 @@ import (
 	"time"
 )
 
-func GetPrettyState(state *ec2.InstanceState) string {
-	switch *state.Name {
-	case "pending":
-		return "⏱ | pending"
-	case "running":
-		return "✅ | running"
-	case "shutting-down":
-		return "🔻 | shutting down"
-	case "terminated":
-		return "🗑 | terminated"
-	case "stopping":
-		return "🥱 | stopping"
-	case "stopped":
-		return "😴 | stopped"
-	}
-	return ""
-}
-
 const (
 	Refresh   = "🚀️ | Refresh"
 	CreateNew = "🎉 | Deploy new instance"
@@ -72,7 +54,7 @@ func NewListInstancesEC2Menu(ec *ec2.EC2) ListInstancesEC2Menu {
 
 				opt[fmt.Sprintf("%s[%s] %s (%s) [running for %s]",
 					isDone,
-					GetPrettyState(i.State),
+					tpl.GetPrettyState(i.State),
 					*i.InstanceId,
 					*i.PublicIpAddress,
 					time.Since(*i.LaunchTime).String())] = i

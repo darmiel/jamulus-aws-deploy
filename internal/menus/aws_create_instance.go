@@ -1,26 +1,19 @@
 package menus
 
 import (
+	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/briandowns/spinner"
 	"github.com/darmiel/jamulus-aws-deploy/internal/tpl"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
-	"time"
 )
 
 type CreateInstanceEC2Menu *EC2Menu
-
-const (
-	CreateAMI = "ami-043097594a7df80ec"
-
-	DefaultKeyPair       = "jamulus-cert"
-	DefaultSecurityGroup = "jamulus-security-group"
-)
 
 func NewCreateInstanceMenu(ec *ec2.EC2, parent *Menu) CreateInstanceEC2Menu {
 	menu := &EC2Menu{
@@ -28,7 +21,7 @@ func NewCreateInstanceMenu(ec *ec2.EC2, parent *Menu) CreateInstanceEC2Menu {
 		Menu: &Menu{Parent: parent},
 	}
 	menu.Print = func() {
-		temp := tpl.SelectTemplate()
+		temp := tpl.SelectTemplate(tpl.TemplateTypeInstance)
 		if temp == nil {
 			return
 		}
@@ -47,7 +40,7 @@ func NewCreateInstanceMenu(ec *ec2.EC2, parent *Menu) CreateInstanceEC2Menu {
 		}
 
 		// INSTANCE TYPE
-		if temp.InstanceType == "" {
+		if temp.Instance.InstanceType == "" {
 			q = &survey.Select{
 				Message: "Select instance type",
 				Options: []string{
@@ -57,7 +50,7 @@ func NewCreateInstanceMenu(ec *ec2.EC2, parent *Menu) CreateInstanceEC2Menu {
 					ec2.InstanceTypeC52xlarge,
 				},
 			}
-			if err := survey.AskOne(q, &temp.InstanceType); err != nil {
+			if err := survey.AskOne(q, &temp.Instance.InstanceType); err != nil {
 				log.Fatalln("Error reading instance type:", err)
 				return
 			}
@@ -70,47 +63,13 @@ func NewCreateInstanceMenu(ec *ec2.EC2, parent *Menu) CreateInstanceEC2Menu {
 			return
 		}
 		if len(resp.KeyPairs) == 0 {
-			if temp.KeyPair == "" {
-				temp.KeyPair = DefaultKeyPair
-			}
-			// ask to create key pair?
-			pair, err := ec.CreateKeyPair(&ec2.CreateKeyPairInput{
-				KeyName: aws.String(temp.KeyPair),
-			})
-			if err != nil {
-				log.Fatalln("Error creating key pair:", err)
-				return
+			if temp.Instance.KeyPair == "" {
+				temp.Instance.KeyPair = tpl.DefaultKeyPair
 			}
 
-			// save key
-			var outPath string
-			if temp.KeyPairPath != "" {
-				if _, err := os.Stat(temp.KeyPairPath); os.IsNotExist(err) {
-					outPath = temp.KeyPairPath
-				}
-			}
-
-			// ask for path
-			if outPath == "" {
-				q = &survey.Input{
-					Message: "Path of your key pair",
-					Suggest: func(toComplete string) []string {
-						files, _ := filepath.Glob(toComplete + "*")
-						return files
-					},
-				}
-				if err := survey.AskOne(q, &outPath); err != nil {
-					log.Fatalln("Error reading your answer:", err)
-					return
-				}
-			}
-
-			// save to path
-			if err := os.WriteFile(outPath, []byte(*pair.KeyMaterial), 0644); err != nil {
-				log.Fatalln("Error writing cert:", err)
-				return
-			}
-		} else if temp.KeyPair == "" {
+			// create key pair
+			temp.CreateKeyPair(ec)
+		} else if temp.Instance.KeyPair == "" {
 			opts := make([]string, len(resp.KeyPairs))
 			i := 0
 			for _, pair := range resp.KeyPairs {
@@ -118,116 +77,95 @@ func NewCreateInstanceMenu(ec *ec2.EC2, parent *Menu) CreateInstanceEC2Menu {
 				i++
 			}
 			q = &survey.Select{Message: "Select Key-Pair", Options: opts}
-			if err := survey.AskOne(q, &temp.KeyPair); err != nil {
+			if err := survey.AskOne(q, &temp.Instance.KeyPair); err != nil {
 				log.Fatalln("Error reading key pair from input:", err)
 				return
-
 			}
 		}
 
-		// security group
+		// SECURITY GROUP
 		groups, err := ec.DescribeSecurityGroups(&ec2.DescribeSecurityGroupsInput{})
 		if err != nil {
 			log.Fatalln("Error reading security groups:", err)
 			return
 		}
 		for _, sg := range groups.SecurityGroups {
-			if *sg.GroupName == DefaultSecurityGroup {
-				temp.SecurityGroupID = *sg.GroupId
+			if *sg.GroupName == tpl.DefaultSecurityGroup {
+				temp.Instance.SecurityGroupID = *sg.GroupId
 				break
 			}
 		}
-
-		s := spinner.New(spinner.CharSets[26], 300*time.Millisecond)
-
-		// create security group
-		if temp.SecurityGroupID == "" {
-			s.Prefix = "🤔 Creating security group "
-			s.FinalMSG = "😁 Created security group!"
-			s.Start()
-
-			// create security group
-			createResponse, err := ec.CreateSecurityGroup(&ec2.CreateSecurityGroupInput{
-				Description:       aws.String("Allows SSH and the Jamulus default port"),
-				GroupName:         aws.String(DefaultSecurityGroup),
-				TagSpecifications: nil,
-				VpcId:             nil,
-			})
-			if err != nil {
-				log.Fatalln("Error creating security group:", err)
-				return
-			}
-			temp.SecurityGroupID = *createResponse.GroupId
-
-			// assign rules to security group
-			if _, err := ec.AuthorizeSecurityGroupIngress(&ec2.AuthorizeSecurityGroupIngressInput{
-				GroupId: &temp.SecurityGroupID,
-				IpPermissions: []*ec2.IpPermission{
-					(&ec2.IpPermission{}).
-						SetIpProtocol("tcp").
-						SetFromPort(22).
-						SetToPort(22).
-						SetIpRanges([]*ec2.IpRange{
-							(&ec2.IpRange{}).
-								SetCidrIp("0.0.0.0/0"),
-						}),
-					(&ec2.IpPermission{}).
-						SetIpProtocol("udp").
-						SetFromPort(22124).
-						SetToPort(22124).
-						SetIpRanges([]*ec2.IpRange{
-							(&ec2.IpRange{}).
-								SetCidrIp("0.0.0.0/0"),
-						}),
-				},
-			}); err != nil {
-				log.Fatalln("Error assigning rules to security group:", err)
-				return
-			}
-			s.Stop()
+		// create?
+		if temp.Instance.SecurityGroupID == "" {
+			temp.CreateSecurityGroup(ec)
 			fmt.Println()
 		}
 
-		s.Prefix = "🤔 Crating instance "
-		s.FinalMSG = "😁 Created instance!"
-		s.Start()
-
-		// create instance
-		runInput := &ec2.RunInstancesInput{
-			ImageId:          aws.String(CreateAMI),
-			InstanceType:     aws.String(temp.InstanceType),
-			MinCount:         aws.Int64(1),
-			MaxCount:         aws.Int64(1),
-			KeyName:          aws.String(temp.KeyPair),
-			SecurityGroupIds: []*string{&temp.SecurityGroupID},
-		}
-		rresp, err := ec.RunInstances(runInput)
-		if err != nil {
-			log.Fatalln("Error creating instance:", err)
-			return
-		}
-		instance := rresp.Instances[0]
-
-		// attach tags
-		tagInput := &ec2.CreateTagsInput{
-			Resources: aws.StringSlice([]string{*instance.InstanceId}),
-			Tags: []*ec2.Tag{
-				{
-					Key:   aws.String("Jamulus"),
-					Value: aws.String("Yes"),
-				},
-				{
-					Key:   aws.String(tpl.JamulusStatusHeader),
-					Value: aws.String(tpl.JamulusStatusCreated),
-				},
-			},
-		}
-		if _, err := ec.CreateTags(tagInput); err != nil {
-			log.Fatalln("Error attaching tags:", err)
-		}
-
-		s.Stop()
+		instance := temp.CreateInstance(ec)
 		fmt.Println()
+
+		// get key pair
+		if temp.Instance.KeyPairPath == "" {
+			if err := survey.AskOne(&survey.Input{
+				Message: "Path of your key pair",
+				Suggest: func(toComplete string) []string {
+					files, _ := filepath.Glob(toComplete + "*")
+					return files
+				},
+			}, &temp.Instance.KeyPairPath); err != nil {
+				log.Fatalln("Error reading your answer:", err)
+				return
+			}
+		}
+
+		// save template
+		if !temp.Template.IsTemplate {
+			var saveTemplate bool
+			if err := survey.AskOne(&survey.Confirm{
+				Message: "Save [Server] Template?",
+				Default: false,
+			}, &saveTemplate); err != nil {
+				log.Fatalln("Error reading your answer:", err)
+				return
+			}
+
+			// ask for name and description
+			if err := survey.Ask([]*survey.Question{
+				{
+					Name:     "TemplateName",
+					Prompt:   &survey.Input{Message: "Template Name"},
+					Validate: survey.Required,
+				},
+				{
+					Name:   "TemplateDescription",
+					Prompt: &survey.Input{Message: "Template Description"},
+				},
+			}, temp); err != nil {
+				log.Fatalln("Error reading your answer:", err)
+				return
+			}
+
+			// encode to json
+			data, err := json.Marshal(temp)
+			if err != nil {
+				log.Fatalln("Error encoding to JSON:", err)
+				return
+			}
+
+			// generate uuid
+			b := make([]byte, 16)
+			if _, err = rand.Read(b); err != nil {
+				log.Fatalln("Error generating id:", err)
+				return
+			}
+			uuid := fmt.Sprintf("%x-%x-%x-%x-%x.json", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+
+			// write
+			if err := os.WriteFile(path.Join("templates", uuid), data, 0755); err != nil {
+				log.Fatalln("Error writing to file:", err)
+				return
+			}
+		}
 
 		NewInstallJamulusMenu(ec, instance, temp, menu.Menu).Print()
 	}

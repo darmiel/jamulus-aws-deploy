@@ -7,38 +7,48 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 )
 
-type CreateInstanceTemplate struct {
-	TemplateName        string
-	TemplateDescription string
-	//
-	InstanceType    string
-	KeyPair         string
-	KeyPairPath     string
-	SecurityGroupID string
-	//
-	IsTemplate bool `json:"-"`
-}
-
 const (
-	NoTemplate = "🤷 No Template / New Template"
+	DefaultKeyPair = "jamulus-cert"
+	NoTemplate     = "🤷 No Template / New Template"
+	TemplateDir    = "templates"
+	Permission     = 0755
 )
 
-func SelectTemplate() *CreateInstanceTemplate {
-	dir := "templates"
+const (
+	TemplateTypeInstance = iota
+	TemplateTypeJamulus
+)
+
+type CreateInstanceTemplate struct {
+	Template struct {
+		TemplateName        string
+		TemplateDescription string
+		TemplateType        uint64
+		IsTemplate          bool `json:"-"`
+	}
+	Instance struct {
+		InstanceType    string
+		KeyPair         string
+		KeyPairPath     string
+		SecurityGroupID string
+	}
+}
+
+func SelectTemplate(ty uint64) *CreateInstanceTemplate {
 	// check if template folder exists
-	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+	if info, err := os.Stat(TemplateDir); err != nil || !info.IsDir() {
 		// create dir
-		// TODO: change me (0755)
-		if err := os.Mkdir("templates", 0755); err != nil {
+		if err := os.Mkdir(TemplateDir, Permission); err != nil {
 			log.Fatalln("Error creating templates folder:", err)
 			return nil
 		}
 	}
 
-	glob, err := filepath.Glob("templates/*.json")
+	glob, err := filepath.Glob(path.Join(TemplateDir, "*.json"))
 	if err != nil {
 		log.Fatalln("Error listing files:", err)
 		return nil
@@ -63,11 +73,15 @@ func SelectTemplate() *CreateInstanceTemplate {
 			log.Println("WARN :: Error parsing template", file, ":", err)
 			continue
 		}
-		res.IsTemplate = true
+		res.Template.IsTemplate = true
+
+		// check template type
+		if res.Template.TemplateType != ty {
+			continue
+		}
 
 		i++
-
-		name := fmt.Sprintf("%d. %s (%s)", i, res.TemplateName, res.TemplateDescription)
+		name := fmt.Sprintf("%d. %s (%s)", i, res.Template.TemplateName, res.Template.TemplateDescription)
 		opts[name] = res
 		optsStr = append(optsStr, name)
 	}
