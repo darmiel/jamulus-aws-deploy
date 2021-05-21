@@ -61,9 +61,9 @@ func Select(message string, opts []string) (resp string) {
 func FlatSelect(message string, optMap map[string]string) (resp string) {
 	opts := make([]string, len(optMap))
 	i := 0
-	for k, _ := range optMap {
+	for k := range optMap {
 		opts[i] = k
 		i++
 	}
-	return optMap[Select("Select Server", opts)]
+	return optMap[Select(message, opts)]
 }

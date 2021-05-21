@@ -30,9 +30,7 @@ func (s *Session) FindInstances(owner string) (resp []*ec2.Instance, err error) 
 		return
 	}
 	for _, r := range out.Reservations {
-		for _, i := range r.Instances {
-			resp = append(resp, i)
-		}
+		resp = append(resp, r.Instances...)
 	}
 	return
 }
