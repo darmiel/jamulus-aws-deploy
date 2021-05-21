@@ -1,3 +1,5 @@
+[![DeepSource](https://deepsource.io/gh/darmiel/jamulus-aws-deploy.svg/?label=active+issues&show_trend=true)](https://deepsource.io/gh/darmiel/jamulus-aws-deploy/?ref=repository-badge)
+
 # Jamulus AWS Deploy
 Set up an 
 [AWS](https://aws.amazon.com/) 
