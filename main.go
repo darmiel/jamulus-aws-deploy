@@ -4,8 +4,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/darmiel/jamulus-aws-deploy/internal/menus"
+	"github.com/darmiel/jamulus-aws-deploy/internal/thin/templates"
+	"github.com/darmiel/jamulus-aws-deploy/internal/thin/tsess"
 	"log"
+	"path"
 )
 
 const (
@@ -21,9 +23,19 @@ func main() {
 		log.Fatalln("Error creating session:", err)
 		return
 	}
-
 	ec := ec2.New(sess, aws.NewConfig().WithRegion(Region))
 
-	menu := menus.NewListInstancesEC2Menu(ec)
-	menu.Print()
+	//
+
+	tplPath := path.Join("flat-tpl", "InstanceTemplate.json")
+	tpl, err := templates.FromFile(tplPath)
+	if err != nil {
+		log.Fatalln("Error reading template:", err)
+		return
+	}
+
+	s := tsess.Session{Template: tpl, EC2: ec, TemplatePath: tplPath}
+	if instances, _ := s.FindInstances(""); instances != nil {
+		log.Println("instances:", instances)
+	}
 }

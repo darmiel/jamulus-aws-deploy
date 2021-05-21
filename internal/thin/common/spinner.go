@@ -1,4 +1,4 @@
-package tpl
+package common
 
 import (
 	"github.com/briandowns/spinner"
