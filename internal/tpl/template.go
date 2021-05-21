@@ -29,15 +29,14 @@ type CreateInstanceTemplate struct {
 		SecurityGroupID string
 	}
 	Jamulus struct {
-		CentralServer *string // ok
-		ServerInfo    *string // ok
-		FastUpdate    *bool   // ok
-		LogPath       *string // ok
-		// HTMLStatusFile       *string //
-		RecordingPath        *string // ok
-		NoRecordOnStart      *bool   // ok
-		EnableMultiThreading *bool   // ok
-		MaxUsers             *int    // ok
+		CentralServer        *string // ok // ok
+		ServerInfo           *string // ok // ok
+		FastUpdate           *bool   // ok // ok
+		LogPath              *string // ok // ok
+		RecordingPath        *string // ok // ok
+		NoRecordOnStart      *bool   // ok // ok
+		EnableMultiThreading *bool   // ok // ok
+		MaxUsers             *int    // ok // ok
 		WelcomeMessage       *string // ok
 	}
 }

@@ -24,8 +24,8 @@ func NewInstallJamulusMenu(ec *ec2.EC2, instance *ec2.Instance, temp *tpl.Create
 			}
 		}
 
-		host := temp.WaitForHost(ec, instance)
-		if host == "" {
+		var host string
+		if instance, host = temp.WaitForHost(ec, instance); host == "" {
 			log.Fatalln("empty host")
 			return
 		}
@@ -91,7 +91,7 @@ func NewInstallJamulusMenu(ec *ec2.EC2, instance *ec2.Instance, temp *tpl.Create
 		log.Println("Server set up.")
 
 		// TODO: start Jamulus setup
-		NewAskJamulusParamsMenu(menu.Menu).Print()
+		NewAskJamulusParamsMenu(menu.Menu, ssh, ec, instance).Print()
 	}
 	return menu
 }

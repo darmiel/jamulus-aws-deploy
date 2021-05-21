@@ -5,15 +5,18 @@ import (
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/darmiel/jamulus-aws-deploy/internal/common"
+	"github.com/darmiel/jamulus-aws-deploy/internal/sshc"
 	"github.com/darmiel/jamulus-aws-deploy/internal/tpl"
 	"log"
 	"strconv"
+	"strings"
 )
 
 type AskJamulusParamsMenu *Menu
 
-func NewAskJamulusParamsMenu(parent *Menu) AskJamulusParamsMenu {
+func NewAskJamulusParamsMenu(parent *Menu, ssh *sshc.SSHC, ec *ec2.EC2, instance *ec2.Instance) AskJamulusParamsMenu {
 	menu := &Menu{
 		Parent: parent,
 	}
@@ -130,7 +133,117 @@ func NewAskJamulusParamsMenu(parent *Menu) AskJamulusParamsMenu {
 
 		temp.AskSave()
 
-		log.Printf("Settings: %+v", temp.Jamulus)
+		/////////////
+		// check if docker process is running
+		if resp, _ := ssh.DockerContainerExists("jamulus"); resp {
+			fmt.Println("> 🎖 Stopping old docker instance ...")
+			_, _ = ssh.Run("sudo docker stop jamulus")
+		}
+
+		// build cli
+		var b strings.Builder
+		b.WriteString("sudo docker run -d --name jamulus --rm grundic/jamulus")
+
+		// params
+		// central server
+		if temp.Jamulus.CentralServer != nil && *temp.Jamulus.CentralServer != "-" {
+			b.WriteString(" --centralserver ")
+			b.WriteString(*temp.Jamulus.CentralServer)
+		}
+
+		// server info
+		if temp.Jamulus.ServerInfo != nil && *temp.Jamulus.ServerInfo != "-" {
+			b.WriteString(" --serverinfo ")
+			b.WriteRune('"')
+			b.WriteString(*temp.Jamulus.ServerInfo)
+			b.WriteRune('"')
+		}
+
+		// fast update
+		if temp.Jamulus.FastUpdate != nil && *temp.Jamulus.FastUpdate {
+			b.WriteString(" --fastupdate")
+		}
+
+		// log path
+		if temp.Jamulus.LogPath != nil && *temp.Jamulus.LogPath != "-" {
+			b.WriteString(" --log ")
+			b.WriteRune('"')
+			b.WriteString(*temp.Jamulus.LogPath)
+			b.WriteRune('"')
+
+			// mkdir
+			var cmd = "mkdir -p \"" + *temp.Jamulus.LogPath + "\""
+			fmt.Println("> 🎖", cmd)
+			_, _ = ssh.Run(cmd)
+		}
+
+		// recording path
+		if temp.Jamulus.RecordingPath != nil && *temp.Jamulus.RecordingPath != "-" {
+			b.WriteString(" --recording ")
+			b.WriteRune('"')
+			b.WriteString(*temp.Jamulus.RecordingPath)
+			b.WriteRune('"')
+
+			// mkdir
+			var cmd = "mkdir -p \"" + *temp.Jamulus.RecordingPath + "\""
+			fmt.Println("> 🎖", cmd)
+			_, _ = ssh.Run(cmd)
+
+			if temp.Jamulus.NoRecordOnStart != nil && *temp.Jamulus.NoRecordOnStart {
+				b.WriteString(" --norecord")
+			}
+		}
+
+		// enable multi threading
+		if temp.Jamulus.EnableMultiThreading != nil && *temp.Jamulus.EnableMultiThreading {
+			b.WriteString(" --multithreading")
+		}
+
+		// max users
+		if temp.Jamulus.MaxUsers != nil {
+			b.WriteString(" --numchannels ")
+			b.WriteString(strconv.Itoa(*temp.Jamulus.MaxUsers))
+		}
+
+		// welcome
+		if temp.Jamulus.WelcomeMessage != nil && *temp.Jamulus.WelcomeMessage != "-" {
+			b.WriteString(" --welcomemessage ")
+			b.WriteRune('"')
+			b.WriteString(*temp.Jamulus.WelcomeMessage)
+			b.WriteRune('"')
+		}
+
+		fmt.Println("> 🎖 Executing:", b.String(), "...")
+
+		resp, err := ssh.Run(b.String())
+		if err != nil {
+			log.Fatalln("error starting server:", err)
+			return
+		}
+		fmt.Println("✅ Container started:", string(resp))
+
+		// update tags
+		// attach tags
+		tagInput := &ec2.CreateTagsInput{
+			Resources: aws.StringSlice([]string{*instance.InstanceId}),
+			Tags: []*ec2.Tag{
+				{
+					Key:   aws.String(tpl.JamulusStatusHeader),
+					Value: aws.String(tpl.JamulusStatusDone),
+				},
+			},
+		}
+		if _, err := ec.CreateTags(tagInput); err != nil {
+			log.Fatalln("Error attaching tags:", err)
+		}
+
+		var host string
+		if instance == nil || instance.PublicIpAddress == nil {
+			host = "unknown"
+		} else {
+			host = *instance.PublicIpAddress
+		}
+		fmt.Println("🤗 Connect to", host+":22124")
 	}
 	return menu
 }

@@ -25,9 +25,7 @@ func GetPrettyState(state *ec2.InstanceState) string {
 	return ""
 }
 
-func (t *CreateInstanceTemplate) WaitForHost(ec *ec2.EC2, instance *ec2.Instance) string {
-	var instanceHost string
-
+func (t *CreateInstanceTemplate) WaitForHost(ec *ec2.EC2, instance *ec2.Instance) (i *ec2.Instance, instanceHost string) {
 	// wait until instance is running
 	s := NewSpinner("🤔 Waiting for instance to be ready", "😁 Instance is running!")
 	for {
@@ -36,9 +34,9 @@ func (t *CreateInstanceTemplate) WaitForHost(ec *ec2.EC2, instance *ec2.Instance
 		})
 		if err != nil {
 			log.Fatalln("Error reading instance:", err)
-			return ""
+			return nil, ""
 		}
-		i := resp.Reservations[0].Instances[0]
+		i = resp.Reservations[0].Instances[0]
 		if *i.State.Name != ec2.InstanceStateNameRunning {
 			time.Sleep(2 * time.Second)
 			continue
@@ -49,6 +47,5 @@ func (t *CreateInstanceTemplate) WaitForHost(ec *ec2.EC2, instance *ec2.Instance
 	}
 	s.Stop()
 	fmt.Println()
-
-	return instanceHost
+	return
 }
