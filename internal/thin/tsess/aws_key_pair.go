@@ -11,6 +11,8 @@ import (
 
 const KeyPairPermMode = 0644
 
+var ErrKeyPairNotFound = errors.New("key pair not found")
+
 func (s *Session) FindKeyPair() (*ec2.KeyPairInfo, error) {
 	call, err := s.EC2.DescribeKeyPairs(&ec2.DescribeKeyPairsInput{})
 	if err != nil {
@@ -24,7 +26,7 @@ func (s *Session) FindKeyPair() (*ec2.KeyPairInfo, error) {
 			return kp, nil
 		}
 	}
-	return nil, errors.New("key pair not found")
+	return nil, ErrKeyPairNotFound
 }
 
 func (s *Session) CreateKeyPair() (err error) {
@@ -43,8 +45,12 @@ func (s *Session) CreateKeyPair() (err error) {
 	var outPath string
 	var num uint64
 	for {
-		outPath = fmt.Sprintf("%s.%d", s.TemplatePath, num)
-		if i, e := os.Stat(outPath); os.IsNotExist(e) && !i.IsDir() {
+		if num == 0 {
+			outPath = s.Instance.KeyPair.LocalPath
+		} else {
+			outPath = fmt.Sprintf("%s.%d", s.Instance.KeyPair.LocalPath, num)
+		}
+		if i, e := os.Stat(outPath); os.IsNotExist(e) || (i != nil && i.IsDir()) {
 			break
 		}
 		num++

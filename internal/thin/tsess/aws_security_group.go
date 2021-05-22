@@ -28,6 +28,7 @@ var (
 			(&ec2.IpRange{}).
 				SetCidrIp("0.0.0.0/0"),
 		})
+	ErrSecurityGroupNotFound = errors.New("security group not found")
 )
 
 func (s *Session) FindSecurityGroup() (*ec2.SecurityGroup, error) {
@@ -43,7 +44,7 @@ func (s *Session) FindSecurityGroup() (*ec2.SecurityGroup, error) {
 			return sg, nil
 		}
 	}
-	return nil, errors.New("security group not found")
+	return nil, ErrSecurityGroupNotFound
 }
 
 func (s *Session) CreateSecurityGroup() (err error) {

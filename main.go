@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -35,7 +36,10 @@ func main() {
 	}
 
 	s := tsess.Session{Template: tpl, EC2: ec, TemplatePath: tplPath}
-	if instances, _ := s.FindInstances(""); instances != nil {
-		log.Println("instances:", instances)
+
+	d, _ := json.Marshal(tpl.Instance)
+	log.Println("Creating instance:", string(d), "...")
+	if _, err := s.CreateInstances(); err != nil {
+		log.Fatalln("error creating instances:", err)
 	}
 }

@@ -1,20 +1,45 @@
 package tsess
 
 import (
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/darmiel/jamulus-aws-deploy/internal/thin/common"
+	"log"
 )
 
 func (s *Session) CreateInstances() (instances []*ec2.Instance, err error) {
 	var sg *ec2.SecurityGroup
-	if sg, err = s.FindSecurityGroup(); err != nil {
-		return
+	log.Println("find security group ...")
+	for {
+		if sg, err = s.FindSecurityGroup(); err != nil {
+			if err == ErrSecurityGroupNotFound {
+				log.Println("creating security group")
+				err = s.CreateSecurityGroup()
+				fmt.Println(err)
+				continue
+			}
+			return
+		}
+		break
 	}
+
+	log.Println("find key pair ...")
 	var kp *ec2.KeyPairInfo
-	if kp, err = s.FindKeyPair(); err != nil {
-		return
+	for {
+		if kp, err = s.FindKeyPair(); err != nil {
+			if err == ErrKeyPairNotFound {
+				log.Println("creating and saving key pair")
+				err = s.CreateKeyPair()
+				fmt.Println(err)
+				continue
+			}
+			return
+		}
+		break
 	}
+	fmt.Println("found key pair:", *kp.KeyPairId)
+
 	var resv *ec2.Reservation
 	if resv, err = s.EC2.RunInstances(&ec2.RunInstancesInput{
 		ImageId:          aws.String(s.Instance.AMI),

@@ -12,8 +12,8 @@
     "Type": "t2.micro",
     "Security Group Name": "jamulus-security-group",
     "Key Pair": {
-      "Name": "mac",
-      "Local Path": "~/.ssh/mac.pem"
+      "Name": "flat",
+      "Local Path": "flat-tpl/key.pem"
     },
     "AMI": "ami-043097594a7df80ec"
   },
