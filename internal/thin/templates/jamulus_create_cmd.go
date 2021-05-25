@@ -6,67 +6,75 @@ import (
 	"strings"
 )
 
-func (t *TemplateJamulus) CreateArgs(sudo, docker bool, name string) string {
-	var builder strings.Builder
+const (
+	JamulusDockerImage = "grundic/jamulus"
+)
 
-	// append docker
-	if docker {
-		if sudo {
-			builder.WriteString("sudo ")
-		}
-		builder.WriteString(`docker run -d --rm --name "`)
-		builder.WriteString(name)
-		builder.WriteString(`" `)
-		builder.WriteString("grundic/jamulus ")
+func (t *TemplateJamulus) CreateArgs() string {
+	args := make([]string, 0)
+
+	// sudo
+	args = append(args, "sudo")
+	args = append(args, "docker run -d --rm")
+
+	// ports
+	args = append(args, "-p")
+	args = append(args, fmt.Sprintf("%d:%d", 22124, 22124))
+
+	// volumes
+	if c := t.LogPath; c != "" {
+		q := strconv.Quote(c)
+		args = append(args, fmt.Sprintf("-v %s:%s", q, q))
 	}
+	if c := t.Recording.Path; c != "" {
+		q := strconv.Quote(c)
+		args = append(args, fmt.Sprintf("-v %s:%s", q, q))
+	}
+
+	// docker image
+	args = append(args, JamulusDockerImage)
 
 	// append params
 	// central server
 	if t.Public.CentralServer != "" {
-		builder.WriteString(t.Public.CreateArgs())
-		builder.WriteRune(' ')
+		args = append(args, t.Public.CreateArgs())
 	}
+
+	args = append(args, "--numchannels")
+	args = append(args, strconv.FormatInt(int64(t.MaxUsers), 10))
 
 	// fast update
 	if t.FastUpdate {
-		builder.WriteString("--fastupdate ")
+		args = append(args, "--fastupdate")
 	}
 
 	// log path
-	if t.LogPath != "" {
-		builder.WriteString(`--log "`)
-		builder.WriteString(t.LogPath)
-		builder.WriteString(`" `)
+	if c := t.LogPath; c != "" {
+		args = append(args, "--log")
+		args = append(args, strconv.Quote(c))
 	}
 
 	// recording
-	if t.Recording.Path != "" {
-		builder.WriteString(`--recording "`)
-		builder.WriteString(t.Recording.Path)
-		builder.WriteString(`" `)
+	if c := t.Recording.Path; c != "" {
+		args = append(args, "--recording")
+		args = append(args, strconv.Quote(c))
 		if !t.Recording.AutoRecord {
-			builder.WriteString("--norecord ")
+			args = append(args, "--norecord")
 		}
 	}
 
 	// multithreading
 	if t.EnableMultiThreading {
-		builder.WriteString("--multithreading ")
+		args = append(args, "--multithreading")
 	}
-
-	// num channels
-	builder.WriteString("--numchannels ")
-	builder.WriteString(strconv.FormatInt(int64(t.MaxUsers), 10))
-	builder.WriteRune(' ')
 
 	// welcome message
-	if t.WelcomeMessage != "" {
-		builder.WriteString(`--welcomemessage "`)
-		builder.WriteString(t.WelcomeMessage)
-		builder.WriteString(`" `)
+	if c := t.WelcomeMessage; c != "" {
+		args = append(args, "--welcomemessage")
+		args = append(args, strconv.Quote(c))
 	}
 
-	return builder.String()
+	return strings.Join(args, " ")
 }
 
 func (p *TemplateJamulusPublic) CreateArgs() string {
@@ -79,7 +87,7 @@ func (p *TemplateJamulusPublic) CreateArgs() string {
 
 	// server info
 	builder.WriteString("--serverinfo ")
-	builder.WriteString(p.ServerInfo.String())
+	builder.WriteString(strconv.Quote(p.ServerInfo.String()))
 
 	return builder.String()
 }

@@ -18,6 +18,13 @@ func FromFile(path string) (tpl *Template, err error) {
 	return
 }
 
+func Must(tpl *Template, err error) *Template {
+	if err != nil {
+		panic(err)
+	}
+	return tpl
+}
+
 func (t *Template) ToFile(path string) (err error) {
 	var data []byte
 	if data, err = json.Marshal(t); err != nil {

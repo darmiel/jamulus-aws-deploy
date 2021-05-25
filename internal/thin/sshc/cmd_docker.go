@@ -39,23 +39,19 @@ func (s *SSHC) DockerContainerRunning(container string) bool {
 	return s.DockerContainerStatus(container) == DockerStatusRunning
 }
 
-func (s *SSHC) DockerSendSignal(container, signal string) bool {
-	resp := s.MustExecute("sudo docker kill -s %s %s", strconv.Quote(signal), strconv.Quote(container))
-	return resp.StatusCode == 0
+func (s *SSHC) DockerSendSignal(container, signal string) *SSHCCommandResult {
+	return s.MustExecute("sudo docker kill -s %s %s", strconv.Quote(signal), strconv.Quote(container))
 }
 
-func (s *SSHC) DockerContainerExec(container, command string, it bool) bool {
-	var builder strings.Builder
-	builder.WriteString("sudo docker exec ")
+func (s *SSHC) DockerContainerExec(container, command string, it bool) *SSHCCommandResult {
+	args := make([]string, 0)
+	args = append(args, "sudo docker exec")
 	if it {
-		builder.WriteString("-it ")
+		args = append(args, "-it")
 	}
-
-	builder.WriteString(strconv.Quote(container))
-	builder.WriteRune(' ')
-	builder.WriteString(strconv.Quote(command))
-	resp := s.MustExecute(builder.String())
-	return resp.StatusCode == 0
+	args = append(args, strconv.Quote(container))
+	args = append(args, strconv.Quote(command))
+	return s.MustExecute(strings.Join(args, " "))
 }
 
 func (s *SSHC) DockerContainerLogs(container string) string {
@@ -66,12 +62,10 @@ func (s *SSHC) DockerContainerLogs(container string) string {
 	return string(resp.Data)
 }
 
-func (s *SSHC) DockerContainerStop(container string, timeout int) bool {
-	resp := s.MustExecute("sudo docker stop -t %d %s", timeout, strconv.Quote(container))
-	return resp.StatusCode == 0
+func (s *SSHC) DockerContainerStop(container string, timeout int) *SSHCCommandResult {
+	return s.MustExecute("sudo docker stop -t %d %s", timeout, strconv.Quote(container))
 }
 
-func (s *SSHC) DockerContainerRestart(container string, timeout int) bool {
-	resp := s.MustExecute("sudo docker container restart -t %d %s", timeout, strconv.Quote(container))
-	return resp.StatusCode == 0
+func (s *SSHC) DockerContainerRestart(container string, timeout int) *SSHCCommandResult {
+	return s.MustExecute("sudo docker container restart -t %d %s", timeout, strconv.Quote(container))
 }

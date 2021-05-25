@@ -19,7 +19,7 @@
   },
   "Jamulus": {
     "Max Users": 25,
-    "Welcome Message": "Hallo Freunde",
+    "Welcome Message": "Hallo Freunde! \"test\"",
     "Public": {
       "Central Server": "",
       "Server Info": {

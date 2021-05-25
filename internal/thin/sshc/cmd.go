@@ -23,7 +23,7 @@ func (r *SSHCCommandResult) String() string {
 func (s *SSHC) Execute(cmd string, args ...interface{}) (res *SSHCCommandResult, err error) {
 	// format command
 	var command string
-	if args != nil && len(args) > 0 {
+	if len(args) > 0 {
 		command = fmt.Sprintf(cmd, args...)
 	} else {
 		command = cmd

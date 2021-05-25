@@ -8,5 +8,4 @@ import (
 type Session struct {
 	*templates.Template
 	*ec2.EC2
-	TemplatePath string
 }
