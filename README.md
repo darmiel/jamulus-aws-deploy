@@ -7,7 +7,7 @@ Set up an
 [Jamulus](https://jamulus.io/) 
 (🐳 [dockerized](https://docker.com))
 instance via 
-[template](./flat-tpl/InstanceTemplate.json) 
+[template](data/templates/InstanceTemplate.json) 
 with one click.
 
 🐣 **Highly** WIP.

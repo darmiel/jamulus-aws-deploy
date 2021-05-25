@@ -4,17 +4,26 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"path"
 )
 
-const PermMode = 0755
+const (
+	PermMode = 0755
+)
+
+var (
+	TemplateDir = path.Join("data", "templates")
+)
 
 // read / write
-func FromFile(path string) (tpl *Template, err error) {
+func FromFile(name string) (tpl *Template, err error) {
 	var data []byte
-	if data, err = ioutil.ReadFile(path); err != nil {
+	if data, err = ioutil.ReadFile(path.Join(TemplateDir, name)); err != nil {
 		return
 	}
-	err = json.Unmarshal(data, &tpl)
+	if err = json.Unmarshal(data, &tpl); err == nil {
+		tpl.LocalTemplate = name
+	}
 	return
 }
 
@@ -25,11 +34,11 @@ func Must(tpl *Template, err error) *Template {
 	return tpl
 }
 
-func (t *Template) ToFile(path string) (err error) {
+func (t *Template) ToFile(name string) (err error) {
 	var data []byte
 	if data, err = json.Marshal(t); err != nil {
 		return
 	}
-	err = os.WriteFile(path, data, PermMode)
+	err = os.WriteFile(path.Join(TemplateDir, name), data, PermMode)
 	return
 }

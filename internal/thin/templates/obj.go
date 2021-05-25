@@ -5,9 +5,10 @@ import (
 )
 
 type Template struct {
-	Template *TemplateInfo     `json:"Template"`
-	Instance *TemplateInstance `json:"Instance"`
-	Jamulus  *TemplateJamulus  `json:"Jamulus"`
+	LocalTemplate string            `json:"-"`
+	Template      *TemplateInfo     `json:"Template"`
+	Instance      *TemplateInstance `json:"Instance"`
+	Jamulus       *TemplateJamulus  `json:"Jamulus"`
 }
 
 ///////////

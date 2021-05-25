@@ -14,12 +14,11 @@ func (t *TemplateJamulus) CreateArgs() string {
 	args := make([]string, 0)
 
 	// sudo
-	args = append(args, "sudo")
-	args = append(args, "docker run -d --rm")
+	args = append(args, "sudo", "docker", "run", "-d", "--rm")
 
 	// ports
-	args = append(args, "-p")
-	args = append(args, fmt.Sprintf("%d:%d", 22124, 22124))
+	args = append(args, "-p",
+		fmt.Sprintf("%d:%d/udp", 22124, 22124))
 
 	// volumes
 	if c := t.LogPath; c != "" {
@@ -34,14 +33,17 @@ func (t *TemplateJamulus) CreateArgs() string {
 	// docker image
 	args = append(args, JamulusDockerImage)
 
+	// default params
+	args = append(args, "-n -s -p 22124")
+
 	// append params
 	// central server
 	if t.Public.CentralServer != "" {
 		args = append(args, t.Public.CreateArgs())
 	}
 
-	args = append(args, "--numchannels")
-	args = append(args, strconv.FormatInt(int64(t.MaxUsers), 10))
+	args = append(args, "--numchannels",
+		strconv.FormatInt(int64(t.MaxUsers), 10))
 
 	// fast update
 	if t.FastUpdate {
@@ -50,14 +52,12 @@ func (t *TemplateJamulus) CreateArgs() string {
 
 	// log path
 	if c := t.LogPath; c != "" {
-		args = append(args, "--log")
-		args = append(args, strconv.Quote(c))
+		args = append(args, "--log", strconv.Quote(c))
 	}
 
 	// recording
 	if c := t.Recording.Path; c != "" {
-		args = append(args, "--recording")
-		args = append(args, strconv.Quote(c))
+		args = append(args, "--recording", strconv.Quote(c))
 		if !t.Recording.AutoRecord {
 			args = append(args, "--norecord")
 		}
@@ -70,26 +70,19 @@ func (t *TemplateJamulus) CreateArgs() string {
 
 	// welcome message
 	if c := t.WelcomeMessage; c != "" {
-		args = append(args, "--welcomemessage")
-		args = append(args, strconv.Quote(c))
+		args = append(args, "--welcomemessage", strconv.Quote(c))
 	}
 
 	return strings.Join(args, " ")
 }
 
 func (p *TemplateJamulusPublic) CreateArgs() string {
-	var builder strings.Builder
-
-	// central server
-	builder.WriteString("--centralserver ")
-	builder.WriteString(p.CentralServer)
-	builder.WriteRune(' ')
-
-	// server info
-	builder.WriteString("--serverinfo ")
-	builder.WriteString(strconv.Quote(p.ServerInfo.String()))
-
-	return builder.String()
+	args := make([]string, 0)
+	args = append(args, "--centralserver",
+		p.CentralServer,
+		"--serverinfo",
+		strconv.Quote(p.ServerInfo.String()))
+	return strings.Join(args, " ")
 }
 
 func (i *TemplateJamulusPublicServerInfo) String() string {

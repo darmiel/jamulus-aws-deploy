@@ -13,7 +13,7 @@
     "Security Group Name": "jamulus-security-group",
     "Key Pair": {
       "Name": "flat",
-      "Local Path": "flat-tpl/key.pem"
+      "Local Path": "data/keys/key.pem"
     },
     "AMI": "ami-043097594a7df80ec"
   },

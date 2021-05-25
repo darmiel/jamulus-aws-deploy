@@ -1,29 +1,22 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/darmiel/jamulus-aws-deploy/internal/thin/common"
 	"github.com/darmiel/jamulus-aws-deploy/internal/thin/sshc"
 	"github.com/darmiel/jamulus-aws-deploy/internal/thin/templates"
-	"github.com/darmiel/jamulus-aws-deploy/internal/thin/tsess"
 	"github.com/melbahja/goph"
 	"github.com/muesli/termenv"
 	"log"
-	"path"
 	"strconv"
-	"strings"
 )
 
 const (
 	Region = "eu-central-1"
 )
 
-var tpl = templates.Must(templates.FromFile(path.Join("flat-tpl", "InstanceTemplate.json")))
-var p = termenv.ColorProfile()
+var tpl = templates.Must(templates.FromFile("InstanceTemplate.json"))
 
 func main() {
 	key, err := goph.Key(tpl.Instance.KeyPair.LocalPath, "")
@@ -36,61 +29,16 @@ func main() {
 	StartJamulus(ssh)
 }
 
-func sshPrefix() termenv.Style {
-	return termenv.String(" SSH ").Foreground(p.Color("0")).Background(p.Color("#DBAB79"))
-}
-
-func errPrefix() termenv.Style {
-	return termenv.String(" ERR ").Foreground(p.Color("0")).Background(p.Color("#E88388"))
-}
-
-type PrintReport struct{}
-
-func (*PrintReport) Report(resp interface{}) {
-	var st string
-	switch t := resp.(type) {
-	case *sshc.SSHCCommandResult:
-		if t.StatusCode == 0 {
-			st = "👍"
-		} else {
-			st = "🤬"
-		}
-		fmt.Println(st)
-		if t.StatusCode != 0 {
-			for _, line := range strings.Split(string(t.Data), "\n") {
-				if len(strings.TrimSpace(line)) <= 0 {
-					continue
-				}
-				fmt.Println(errPrefix(), termenv.String(line).Foreground(p.Color("#DBAB79")))
-			}
-		}
-	case bool:
-		if t {
-			st = "👍"
-		} else {
-			st = "🤬"
-		}
-		fmt.Println(st)
-	default:
-		fmt.Printf("Report :: invalid type: %T (%v)\n", t, t)
-	}
-}
-
-func PrintOkState(msg string) *PrintReport {
-	fmt.Print(sshPrefix(), " 🔨 | ", msg, " ... ")
-	return &PrintReport{}
-}
-
 func StopJamulus(ssh *sshc.SSHC, verbose bool) {
 	running := ssh.DockerPs(templates.JamulusDockerImage)
 	if len(running) <= 0 {
 		if verbose {
-			fmt.Println(sshPrefix(), "No Jamulus servers running")
+			fmt.Println(common.SSHPrefix(), "No Jamulus servers running")
 		}
 		return
 	}
-	fmt.Println(sshPrefix(), "There are/is",
-		termenv.String(strconv.Itoa(len(running))).Foreground(p.Color("#E88388")),
+	fmt.Println(common.SSHPrefix(), "There are/is",
+		common.Color(strconv.Itoa(len(running)), "#E88388"),
 		"Jamulus server/s running")
 
 	stop := make([]string, 0)
@@ -101,7 +49,7 @@ func StopJamulus(ssh *sshc.SSHC, verbose bool) {
 		panic(err)
 	}
 	for _, id := range stop {
-		PrintOkState("Shutting down #" + id).
+		common.PrintSSHState("Shutting down #" + id).
 			Report(ssh.DockerContainerStop(id, 25))
 	}
 }
@@ -110,28 +58,28 @@ func StartJamulus(ssh *sshc.SSHC) {
 	// check if docker is installed
 	if !ssh.PkgWhich("docker") {
 		// sudo yum update -y
-		PrintOkState("Yum Update").
+		common.PrintSSHState("Yum Update").
 			Report(ssh.YumUpdate())
 
 		// sudo yum install docker -y
-		PrintOkState("Install Docker").
+		common.PrintSSHState("Install Docker").
 			Report(ssh.YumInstall("docker"))
 
 		// sudo systemctl start docker
-		PrintOkState("Start Docker Service").
+		common.PrintSSHState("Start Docker Service").
 			Report(ssh.SystemCtl("docker", "start"))
 	}
 
 	// mkdirs
 	if c := tpl.Jamulus.LogPath; c != "" {
 		if !ssh.DirExists(c) {
-			PrintOkState("mkdir (log) " + termenv.String(c).Foreground(p.Color("#A8CC8C")).String()).
+			common.PrintSSHState("mkdir (log) " + common.Color(c, "#A8CC8C").String()).
 				Report(ssh.DirCreate(c))
 		}
 	}
 	if c := tpl.Jamulus.Recording.Path; c != "" {
 		if !ssh.DirExists(c) {
-			PrintOkState("mkdir (rec) " + termenv.String(c).Foreground(p.Color("#A8CC8C")).String()).
+			common.PrintSSHState("mkdir (rec) " + common.Color(c, "#A8CC8C").String()).
 				Report(ssh.DirCreate(c))
 		}
 	}
@@ -141,13 +89,27 @@ func StartJamulus(ssh *sshc.SSHC) {
 
 	// start
 	cmd := tpl.Jamulus.CreateArgs()
-	fmt.Println(sshPrefix(), termenv.String(cmd).Foreground(p.Color("#D290E4")))
+	fmt.Println(common.SSHPrefix(), common.Color(cmd, "#D290E4"))
 
 	// sudo docker run [ ... ]
-	PrintOkState("Starting Jamulus Server").
-		Report(ssh.MustExecute(cmd))
+	state := common.PrintSSHState("Starting Jamulus Server")
+	resp := ssh.MustExecute(cmd)
+	state.Report(resp)
+
+	// sudo docker logs [ ... ]
+	if resp.StatusCode == 0 {
+		id := string(resp.Data)
+		fmt.Println(common.JAMPrefix(), "Requesting logs for", common.Color(id, termenv.ANSIBlue.Sequence(false)))
+		resp = ssh.MustExecute("sudo docker logs " + id)
+		if resp.StatusCode != 0 {
+			fmt.Println(common.ERRPrefix(), string(resp.Data))
+		} else {
+			common.LvlPrint(common.JAMPrefix(), string(resp.Data))
+		}
+	}
 }
 
+/*
 func _main() {
 	// create session
 	sess, err := session.NewSession(&aws.Config{
@@ -168,3 +130,4 @@ func _main() {
 		log.Fatalln("error creating instances:", err)
 	}
 }
+*/
