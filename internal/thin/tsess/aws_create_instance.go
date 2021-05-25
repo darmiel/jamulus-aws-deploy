@@ -8,6 +8,10 @@ import (
 	"log"
 )
 
+const (
+	Owner = "Unknown" // change with `go build -ldflags "-X tsess.Owner=<name>"`
+)
+
 func (s *Session) CreateInstances() (instances []*ec2.Instance, err error) {
 	var sg *ec2.SecurityGroup
 	log.Println("find security group ...")
@@ -51,10 +55,24 @@ func (s *Session) CreateInstances() (instances []*ec2.Instance, err error) {
 	}); err != nil {
 		return
 	}
-	if err = s.AttachTags(resv.Instances, []*ec2.Tag{
+
+	tags := []*ec2.Tag{
 		&common.JamulusDefTag,
-		&common.JamulusStatusCreatedTag,
-	}); err != nil {
+		{
+			Key:   aws.String(common.JamulusOwnerHeader),
+			Value: aws.String(Owner),
+		},
+	}
+
+	// append local template
+	if c := s.Template.LocalTemplate; c != "" {
+		tags = append(tags, &ec2.Tag{
+			Key:   aws.String(common.JamulusTemplateHeader),
+			Value: aws.String(c),
+		})
+	}
+
+	if err = s.AttachTags(resv.Instances, tags); err != nil {
 		return
 	}
 	return resv.Instances, nil

@@ -7,15 +7,9 @@ import (
 
 // headers
 const (
-	JamulusDefHeader   = "Jamulus"
-	JamulusStateHeader = "Jamulus-State"
-	JamulusOwnerHeader = "Jamulus-Owner"
-)
-
-// values
-const (
-	JamulusStateCreated = "created"
-	JamulusStateDone    = "done"
+	JamulusDefHeader      = "Jamulus"
+	JamulusOwnerHeader    = "Jamulus-Owner"
+	JamulusTemplateHeader = "Jamulus-Local-Template"
 )
 
 var (
@@ -23,19 +17,4 @@ var (
 		Key:   aws.String(JamulusDefHeader),
 		Value: aws.String("Yes"),
 	}
-	JamulusStatusCreatedTag = ec2.Tag{
-		Key:   aws.String(JamulusStateHeader),
-		Value: aws.String(JamulusStateCreated),
-	}
 )
-
-func Is(instance *ec2.Instance, state string) bool {
-	for _, tag := range instance.Tags {
-		if tag.Key != nil && *tag.Key == JamulusStateHeader {
-			if tag.Value != nil && *tag.Value == state {
-				return true
-			}
-		}
-	}
-	return false
-}

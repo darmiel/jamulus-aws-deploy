@@ -42,12 +42,30 @@ func StopJamulus(ssh *sshc.SSHC, verbose bool) {
 		"Jamulus server/s running")
 
 	stop := make([]string, 0)
-	if err := survey.AskOne(&survey.MultiSelect{
-		Message: "Select servers to stop",
-		Options: running,
-	}, &stop); err != nil {
-		panic(err)
+
+	// ask which one to stop
+	if len(running) == 1 {
+		var stopit bool
+		if err := survey.AskOne(&survey.Confirm{
+			Message: "Stop Jamulus server #" + running[0],
+			Default: true,
+		}, &stopit); err != nil {
+			panic(err)
+		}
+		if !stopit {
+			return
+		}
+		stop = append(stop, running[0])
+	} else {
+		if err := survey.AskOne(&survey.MultiSelect{
+			Message: "Select servers to stop",
+			Options: running,
+		}, &stop); err != nil {
+			panic(err)
+		}
 	}
+
+	// stop
 	for _, id := range stop {
 		common.PrintSSHState("Shutting down #" + id).
 			Report(ssh.DockerContainerStop(id, 25))
@@ -106,6 +124,57 @@ func StartJamulus(ssh *sshc.SSHC) {
 		} else {
 			common.LvlPrint(common.JAMPrefix(), string(resp.Data))
 		}
+	}
+
+	JamulusRecord(ssh, "", JamulusRecModeToggle, true)
+}
+
+const (
+	JamulusRecModeToggle = iota
+	JamulusRecModeStart
+)
+
+func JamulusRecord(ssh *sshc.SSHC, container string, mode int, verbose bool) {
+	var signal string
+	switch mode {
+	case JamulusRecModeStart:
+		signal = "SIGUSR1"
+	case JamulusRecModeToggle:
+		signal = "SIGUSR2"
+	default:
+		if verbose {
+			fmt.Println(common.ERRPrefix(), "invalid mode.")
+		}
+		return
+	}
+
+	if container == "" {
+		running := ssh.DockerPs(templates.JamulusDockerImage)
+		if len(running) == 0 {
+			if verbose {
+				fmt.Println(common.ERRPrefix(), "There is no Jamulus server running")
+			}
+			return
+		} else if len(running) == 1 {
+			container = running[0]
+		} else {
+			q := &survey.Select{
+				Message: "Select server to send " + signal,
+				Options: running,
+			}
+			if err := survey.AskOne(q, &container); err != nil {
+				panic(err)
+			}
+		}
+	}
+	fmt.Print(common.SSHPrefix(), " Sending signal ",
+		common.Color(signal, "#DBAB79"), " to ", common.Color(container, "#66C2CD"),
+		" ... ")
+	if resp := ssh.DockerSendSignal(container, signal); resp.StatusCode == 0 {
+		fmt.Println("👍")
+	} else {
+		fmt.Println("🤬")
+		common.LvlPrint(common.ERRPrefix(), string(resp.Data))
 	}
 }
 
