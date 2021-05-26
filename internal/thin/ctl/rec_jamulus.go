@@ -31,7 +31,7 @@ func JamulusRecord(ssh *sshc.SSHC, mode int, verbose bool) {
 	running := ssh.DockerPs(templates.JamulusDockerImage)
 	if len(running) <= 0 {
 		if verbose {
-			fmt.Println(common.SSHPrefix(), "No Jamulus servers running")
+			fmt.Println(common.ERRPrefix(), "No Jamulus servers running")
 		}
 		return
 	}

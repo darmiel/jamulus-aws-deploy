@@ -62,16 +62,15 @@ func (m *Menu) DisplayListInstances() {
 	switch id {
 	case Refresh:
 		m.DisplayListInstances()
-		return
 	case CreateNew:
 		m.DisplayDeployNew()
-		return
 	default:
 		instance := optMap[id]
 		if instance == nil {
 			panic("instance was empty")
 		}
 		m.DisplayControlInstance(instance)
-		return
 	}
+
+	m.DisplayListInstances()
 }

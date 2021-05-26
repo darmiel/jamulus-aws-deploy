@@ -28,14 +28,13 @@ func (m *Menu) DisplayDeployNew() {
 	instance := instances[0]
 	//
 
-	fmt.Println(common.AWSPrefix(), "Created instance:", *instance.InstanceId,
-		"waiting until instance is", common.Color("running", "#A8CC8C"))
-
+	fmt.Println(common.AWSPrefix(), "Created instance:", *instance.InstanceId)
+	fmt.Println(common.AWSPrefix(), "Waiting until instance is", common.Color("running", "#A8CC8C"))
 	if instance, err = waiter.WaitForState(m.ec, *instance.InstanceId, "running"); err != nil {
 		panic(err)
 	}
 
-	fmt.Println(common.AWSPrefix(), "Instance is running. Waiting for SSH")
+	fmt.Println(common.AWSPrefix(), "Instance is running. Waiting for SSH ...")
 	ssh, err := waiter.WaitForSSHInstance(instance, tpl)
 	if err != nil {
 		panic(err)
