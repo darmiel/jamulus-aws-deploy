@@ -17,7 +17,7 @@ func NewMenu(ec *ec2.EC2) *Menu {
 }
 
 const (
-	Refresh   = "🚀️| Refresh"
+	Refresh   = "🚀 | Refresh"
 	CreateNew = "🎉 | Deploy new instance"
 )
 
@@ -43,7 +43,7 @@ func (m *Menu) DisplayListInstances() {
 	optMap := make(map[string]*ec2.Instance)
 	for _, r := range resp.Reservations {
 		for _, i := range r.Instances {
-			title := fmt.Sprintf("[%s] %s (%s) [running for %s]",
+			title := fmt.Sprintf("💻 | [%s] %s (%s) [running for %s]",
 				common.GetPrettyState(i.State), *i.InstanceId, *i.PublicIpAddress, time.Since(*i.LaunchTime))
 			optMap[title] = i
 		}

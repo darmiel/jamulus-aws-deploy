@@ -7,10 +7,13 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
+	"time"
 )
 
 var (
-	lsRegex = regexp.MustCompile(`(?m)^([drwx-]{10})\s+([1-9])\s+([A-Za-z0-9-_]+)\s+([A-Za-z0-9-_]+)\s+([0-9]+)\s+([A-Za-z]+)\s+([0-9]+)\s+([0-9:]+)\s+(.*)$`)
+	lsRegex = regexp.MustCompile(
+		`(?m)^([drwx-]{10})\s+([1-9])\s+([A-Za-z0-9-_]+)\s+([A-Za-z0-9-_]+)\s+([0-9]+)\s+([0-9-]+)\s+([0-9:.]+)\s+([-+0-9]+)\s+(.*)$`)
 )
 
 func (s *SSHC) DownloadFileBase64(lpath, rpath string) (int, error) {
@@ -32,16 +35,26 @@ type FileInfo struct {
 	Owner      string
 	Group      string
 	Size       uint64
+	Time       time.Time
 	FileName   string
 }
 
+func (i *FileInfo) IsDir() bool {
+	return strings.HasPrefix(i.Permission, "d")
+}
+
 func (s *SSHC) DirLS(dir string) []*FileInfo {
-	resp := s.MustExecute("sudo ls -la %s", strconv.Quote(dir))
+	resp := s.MustExecute("sudo ls -la --time-style=full %s", strconv.Quote(dir))
 	res := make([]*FileInfo, 0)
 	if resp.StatusCode != 0 {
 		return res
 	}
 	for _, m := range lsRegex.FindAllStringSubmatch(string(resp.Data), -1) {
+		name := m[9]
+		if name == "." || name == ".." {
+			continue
+		}
+
 		numLinks, err := strconv.ParseInt(m[2], 10, 8)
 		if err != nil {
 			fmt.Println("WARN (numLinks) ::", err)
@@ -52,13 +65,22 @@ func (s *SSHC) DirLS(dir string) []*FileInfo {
 			fmt.Println("WARN (size) ::", err)
 			continue
 		}
+
+		t, err := time.Parse("2006-01-02 15:04:05.000000000 -0700",
+			fmt.Sprintf("%s %s %s", m[6], m[7], m[8]))
+		if err != nil {
+			fmt.Println("WRN:", "error parsing date:", err)
+			continue
+		}
+
 		i := &FileInfo{
 			Permission: m[1],
 			NumLinks:   uint8(numLinks),
 			Owner:      m[3],
 			Group:      m[4],
 			Size:       uint64(size),
-			FileName:   m[9],
+			FileName:   name,
+			Time:       t,
 		}
 		res = append(res, i)
 	}

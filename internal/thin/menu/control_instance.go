@@ -10,15 +10,12 @@ import (
 )
 
 const (
-	HeaderActionJamulus          = "Jamulus"
-	ControlActionStartJamulus    = "🚀 | Start Jamulus"
-	ControlActionStopJamulus     = "🔻 | Stop Jamulus"
-	ControlActionToggleRecording = "🎤 | Toggle Recording"
-	HeaderActionSCP              = "SCP"
-	ControlActionGetRecordings   = "🎙 Browse Recordings"
-	ControlActionGetLogs         = "📝 | Browse Logs"
-	HeaderActionAWS              = "AWS"
-	ControlActionTerminate       = "🗑 | Terminate"
+	ControlActionStartJamulus    = "JAM | 🚀 | Start Jamulus"
+	ControlActionStopJamulus     = "JAM | 🔻 | Stop Jamulus"
+	ControlActionToggleRecording = "JAM | 🎤 | Toggle Recording"
+	ControlActionGetRecordings   = "SCP | 📂 | Browse Recordings"
+	ControlActionGetLogs         = "SCP | 📂 | Browse Logs"
+	ControlActionTerminate       = "AWS | 🚮 | Terminate"
 )
 
 func GetTemplate(instance *ec2.Instance) *templates.Template {
@@ -50,27 +47,13 @@ func (m *Menu) DisplayControlInstance(instance *ec2.Instance) {
 		return
 	}
 	action := common.Select("Select action", []string{
-		HeaderActionJamulus,
 		ControlActionStartJamulus,
 		ControlActionStopJamulus,
 		ControlActionToggleRecording,
-
-		HeaderActionSCP,
 		ControlActionGetRecordings,
 		ControlActionGetLogs,
-
-		HeaderActionAWS,
 		ControlActionTerminate,
 	})
-
-	// NO-ACTIONS / HEADERS
-	switch action {
-	case HeaderActionAWS,
-		HeaderActionJamulus,
-		HeaderActionSCP:
-		m.DisplayControlInstance(instance)
-		return
-	}
 
 	// AWS-ACTIONS
 	switch action {
@@ -120,5 +103,11 @@ func (m *Menu) DisplayControlInstance(instance *ec2.Instance) {
 
 	case ControlActionToggleRecording:
 		ctl.JamulusRecord(ssh, ctl.JamulusRecModeToggle, true)
+
+	case ControlActionGetLogs:
+		m.ListLogs(ssh, tpl)
+
+	case ControlActionGetRecordings:
+		m.ListRecordings(ssh, tpl)
 	}
 }
