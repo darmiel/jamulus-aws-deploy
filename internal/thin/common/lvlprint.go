@@ -29,6 +29,10 @@ func JAMPrefix() termenv.Style {
 	return termenv.String(" JAM ").Foreground(p.Color("0")).Background(p.Color("#D290E4"))
 }
 
+func AWSPrefix() termenv.Style {
+	return termenv.String(" AWS ").Foreground(p.Color("0")).Background(p.Color("#DBAB79"))
+}
+
 func LvlPrint(prefix interface{}, message string) {
 	for _, line := range strings.Split(message, "\n") {
 		if len(strings.TrimSpace(line)) <= 0 {
