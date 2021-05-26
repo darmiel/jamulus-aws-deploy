@@ -16,3 +16,7 @@ func Must(g *goph.Client, err error) *SSHC {
 	}
 	return &SSHC{g}
 }
+
+func (s *SSHC) Client() *goph.Client {
+	return s.client
+}

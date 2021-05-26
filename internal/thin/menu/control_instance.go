@@ -5,15 +5,19 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/darmiel/jamulus-aws-deploy/internal/thin/common"
 	"github.com/darmiel/jamulus-aws-deploy/internal/thin/ctl"
-	"github.com/darmiel/jamulus-aws-deploy/internal/thin/sshc"
 	"github.com/darmiel/jamulus-aws-deploy/internal/thin/templates"
-	"github.com/melbahja/goph"
+	"github.com/darmiel/jamulus-aws-deploy/internal/thin/waiter"
 )
 
 const (
+	HeaderActionJamulus          = "Jamulus"
 	ControlActionStartJamulus    = "🚀 | Start Jamulus"
 	ControlActionStopJamulus     = "🔻 | Stop Jamulus"
 	ControlActionToggleRecording = "🎤 | Toggle Recording"
+	HeaderActionSCP              = "SCP"
+	ControlActionGetRecordings   = "🎙 Browse Recordings"
+	ControlActionGetLogs         = "📝 | Browse Logs"
+	HeaderActionAWS              = "AWS"
 	ControlActionTerminate       = "🗑 | Terminate"
 )
 
@@ -46,12 +50,29 @@ func (m *Menu) DisplayControlInstance(instance *ec2.Instance) {
 		return
 	}
 	action := common.Select("Select action", []string{
+		HeaderActionJamulus,
 		ControlActionStartJamulus,
 		ControlActionStopJamulus,
 		ControlActionToggleRecording,
+
+		HeaderActionSCP,
+		ControlActionGetRecordings,
+		ControlActionGetLogs,
+
+		HeaderActionAWS,
 		ControlActionTerminate,
 	})
 
+	// NO-ACTIONS / HEADERS
+	switch action {
+	case HeaderActionAWS,
+		HeaderActionJamulus,
+		HeaderActionSCP:
+		m.DisplayControlInstance(instance)
+		return
+	}
+
+	// AWS-ACTIONS
 	switch action {
 	case ControlActionTerminate:
 		_, err := m.ec.TerminateInstances(&ec2.TerminateInstancesInput{
@@ -64,33 +85,40 @@ func (m *Menu) DisplayControlInstance(instance *ec2.Instance) {
 		return
 	}
 
-	fmt.Println(common.SSHPrefix(), "waiting for ssh ...")
+	// RUNNING-ACTIONS
+	if instance.State == nil || instance.State.Name == nil || *instance.State.Name != "running" {
+		fmt.Println(common.AWSPrefix(), "This action requires the instance to be running. Starting ...")
 
-	// get ssh
-	key, err := goph.Key(tpl.Instance.KeyPair.LocalPath, "")
-	if err != nil {
-		fmt.Println(common.ERRPrefix(), "error loading key:", err)
-		return
+		// start instance
+		var err error
+		if _, err = m.ec.StartInstances(&ec2.StartInstancesInput{
+			InstanceIds: []*string{instance.InstanceId},
+		}); err != nil {
+			panic(err)
+		}
+
+		// wait for instance
+		if instance, err = waiter.WaitForState(m.ec, *instance.InstanceId, "running"); err != nil {
+			panic(err)
+		}
 	}
-	client, err := goph.NewUnknown("ec2-user", *instance.PublicIpAddress, key)
-	ssh := sshc.Must(client, err)
 
+	// SSH-ACTIONS
+	fmt.Println(common.SSHPrefix(), "This action requires SSH")
+	ssh, err := waiter.WaitForSSHInstance(instance, tpl)
+	if err != nil {
+		panic(err)
+	}
 	switch action {
 	case ControlActionStartJamulus:
 		ctl.StartJamulus(ssh, tpl)
 		return
 
 	case ControlActionStopJamulus:
-		ctl.StopJamulus(ssh, true, tpl)
+		ctl.StopJamulus(ssh, true)
 		return
 
 	case ControlActionToggleRecording:
-		containers := ssh.DockerPs(templates.JamulusDockerImage)
-		if len(containers) == 0 {
-			fmt.Println(common.ERRPrefix(), "there are no jamulus servers running")
-			return
-		}
-		ctl.JamulusRecord(ssh, common.Select("select server to toggle recording", containers),
-			ctl.JamulusRecModeToggle, true)
+		ctl.JamulusRecord(ssh, ctl.JamulusRecModeToggle, true)
 	}
 }

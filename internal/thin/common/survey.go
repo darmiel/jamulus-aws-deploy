@@ -52,10 +52,20 @@ func Select(message string, opts []string) (resp string) {
 		Message: message,
 		Options: opts,
 	}
-	if err := survey.AskOne(q, &resp); err != nil {
+	if err := survey.AskOne(q, &resp, survey.WithPageSize(len(opts))); err != nil {
 		log.Fatalln("error reading your answer:", err)
 	}
 	return
+}
+
+func SelectOrOne(message string, opts []string) (resp string) {
+	if len(opts) == 0 {
+		return ""
+	} else if len(opts) == 1 {
+		return opts[0]
+	} else {
+		return Select(message, opts)
+	}
 }
 
 func FlatSelect(message string, optMap map[string]string) (resp string) {

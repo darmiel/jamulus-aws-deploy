@@ -6,6 +6,7 @@ import (
 	"github.com/darmiel/jamulus-aws-deploy/internal/thin/common"
 	"github.com/darmiel/jamulus-aws-deploy/internal/thin/sshc"
 	"github.com/darmiel/jamulus-aws-deploy/internal/thin/templates"
+	"strconv"
 )
 
 const (
@@ -13,7 +14,7 @@ const (
 	JamulusRecModeStart
 )
 
-func JamulusRecord(ssh *sshc.SSHC, container string, mode int, verbose bool) {
+func JamulusRecord(ssh *sshc.SSHC, mode int, verbose bool) {
 	var signal string
 	switch mode {
 	case JamulusRecModeStart:
@@ -27,32 +28,50 @@ func JamulusRecord(ssh *sshc.SSHC, container string, mode int, verbose bool) {
 		return
 	}
 
-	if container == "" {
-		running := ssh.DockerPs(templates.JamulusDockerImage)
-		if len(running) == 0 {
-			if verbose {
-				fmt.Println(common.ERRPrefix(), "There is no Jamulus server running")
-			}
+	running := ssh.DockerPs(templates.JamulusDockerImage)
+	if len(running) <= 0 {
+		if verbose {
+			fmt.Println(common.SSHPrefix(), "No Jamulus servers running")
+		}
+		return
+	}
+	fmt.Println(common.SSHPrefix(), "There are/is",
+		common.Color(strconv.Itoa(len(running)), "#E88388"),
+		"Jamulus server/s running")
+
+	toggleSvr := make([]string, 0)
+
+	// ask which one to toggleSvr
+	if len(running) == 1 {
+		var recordit bool
+		if err := survey.AskOne(&survey.Confirm{
+			Message: "Toggle recording on Jamulus server #" + running[0],
+			Default: true,
+		}, &recordit); err != nil {
+			panic(err)
+		}
+		if !recordit {
 			return
-		} else if len(running) == 1 {
-			container = running[0]
-		} else {
-			q := &survey.Select{
-				Message: "Select server to send " + signal,
-				Options: running,
-			}
-			if err := survey.AskOne(q, &container); err != nil {
-				panic(err)
-			}
+		}
+		toggleSvr = append(toggleSvr, running[0])
+	} else {
+		if err := survey.AskOne(&survey.MultiSelect{
+			Message: "Select servers to toggle recording",
+			Options: running,
+		}, &toggleSvr); err != nil {
+			panic(err)
 		}
 	}
-	fmt.Print(common.SSHPrefix(), " Sending signal ",
-		common.Color(signal, "#DBAB79"), " to ", common.Color(container, "#66C2CD"),
-		" ... ")
-	if resp := ssh.DockerSendSignal(container, signal); resp.StatusCode == 0 {
-		fmt.Println("👍")
-	} else {
-		fmt.Println("🤬")
-		common.LvlPrint(common.ERRPrefix(), string(resp.Data))
+
+	for _, container := range toggleSvr {
+		fmt.Print(common.SSHPrefix(), " Sending signal ",
+			common.Color(signal, "#DBAB79"), " to ", common.Color(container, "#66C2CD"),
+			" ... ")
+		if resp := ssh.DockerSendSignal(container, signal); resp.StatusCode == 0 {
+			fmt.Println("👍")
+		} else {
+			fmt.Println("🤬")
+			common.LvlPrint(common.ERRPrefix(), string(resp.Data))
+		}
 	}
 }

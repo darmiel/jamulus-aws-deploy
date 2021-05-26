@@ -9,3 +9,10 @@ type Session struct {
 	*templates.Template
 	*ec2.EC2
 }
+
+func NewTemplatedSession(ec *ec2.EC2, tpl *templates.Template) *Session {
+	return &Session{
+		Template: tpl,
+		EC2:      ec,
+	}
+}

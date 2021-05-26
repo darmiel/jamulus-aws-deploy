@@ -6,6 +6,7 @@ import (
 	"github.com/darmiel/jamulus-aws-deploy/internal/thin/sshc"
 	"github.com/darmiel/jamulus-aws-deploy/internal/thin/templates"
 	"github.com/muesli/termenv"
+	"strings"
 )
 
 func StartJamulus(ssh *sshc.SSHC, tpl *templates.Template) {
@@ -39,7 +40,7 @@ func StartJamulus(ssh *sshc.SSHC, tpl *templates.Template) {
 	}
 
 	// stop old jamulus servers
-	StopJamulus(ssh, false, tpl)
+	StopJamulus(ssh, false)
 
 	// start
 	cmd := tpl.Jamulus.CreateArgs()
@@ -53,6 +54,11 @@ func StartJamulus(ssh *sshc.SSHC, tpl *templates.Template) {
 	// sudo docker logs [ ... ]
 	if resp.StatusCode == 0 {
 		id := string(resp.Data)
+		if strings.Contains(id, "Pull") {
+			split := strings.Split(id, "\n")
+			id = strings.TrimSpace(split[len(split)-2])
+		}
+
 		fmt.Println(common.JAMPrefix(), "Requesting logs for", common.Color(id, termenv.ANSIBlue.Sequence(false)))
 		resp = ssh.MustExecute("sudo docker logs " + id)
 		if resp.StatusCode != 0 {
@@ -61,4 +67,6 @@ func StartJamulus(ssh *sshc.SSHC, tpl *templates.Template) {
 			common.LvlPrint(common.JAMPrefix(), string(resp.Data))
 		}
 	}
+	fmt.Println(common.JAMPrefix(), "Connect Jamulus to",
+		common.Color(ssh.Client().Config.Addr+":22124", "#A8CC8C"))
 }

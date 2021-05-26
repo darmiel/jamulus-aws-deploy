@@ -9,7 +9,7 @@ import (
 	"strconv"
 )
 
-func StopJamulus(ssh *sshc.SSHC, verbose bool, tpl *templates.Template) {
+func StopJamulus(ssh *sshc.SSHC, verbose bool) {
 	running := ssh.DockerPs(templates.JamulusDockerImage)
 	if len(running) <= 0 {
 		if verbose {
