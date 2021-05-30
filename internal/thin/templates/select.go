@@ -35,8 +35,8 @@ func SelectTemplate() *Template {
 
 	i := 0
 	for _, file := range glob {
-		if strings.Contains(file, "/") {
-			file = file[strings.LastIndex(file, "/")+1:]
+		if strings.Contains(file, string(os.PathSeparator)) {
+			file = file[strings.LastIndex(file, string(os.PathSeparator))+1:]
 		}
 
 		res, err := FromFile(file)
