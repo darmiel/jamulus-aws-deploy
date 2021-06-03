@@ -18,7 +18,7 @@ func Color(msg, color string) termenv.Style {
 }
 
 func SSHPrefix() termenv.Style {
-	return termenv.String(" SSH ").Foreground(p.Color("0")).Background(p.Color("#DBAB79"))
+	return termenv.String(" SSH ").Foreground(p.Color("0")).Background(p.Color("#3498db"))
 }
 
 func ERRPrefix() termenv.Style {

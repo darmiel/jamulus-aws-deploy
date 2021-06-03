@@ -95,11 +95,9 @@ func (m *Menu) DisplayControlInstance(instance *ec2.Instance) {
 	switch action {
 	case ControlActionStartJamulus:
 		ctl.StartJamulus(ssh, tpl)
-		return
 
 	case ControlActionStopJamulus:
 		ctl.StopJamulus(ssh, true)
-		return
 
 	case ControlActionToggleRecording:
 		ctl.JamulusRecord(ssh, ctl.JamulusRecModeToggle, true)
@@ -110,4 +108,7 @@ func (m *Menu) DisplayControlInstance(instance *ec2.Instance) {
 	case ControlActionGetRecordings:
 		m.ListRecordings(ssh, tpl)
 	}
+
+	// go back to control instance
+	m.DisplayControlInstance(instance)
 }
