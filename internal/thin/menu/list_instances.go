@@ -22,6 +22,8 @@ const (
 )
 
 func (m *Menu) DisplayListInstances() {
+	fmt.Println(common.AWSPrefix(), "Loading instances ...")
+
 	// load instances
 	resp, err := m.ec.DescribeInstances(&ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{

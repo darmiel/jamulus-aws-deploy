@@ -6,23 +6,16 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/darmiel/jamulus-aws-deploy/internal/thin/menu"
-	"github.com/darmiel/jamulus-aws-deploy/internal/thin/templates"
 	"github.com/darmiel/jamulus-aws-deploy/internal/thin/tsess"
 	"log"
+
+	// apply windows patch
+	_ "github.com/darmiel/jamulus-aws-deploy/internal/thin"
 )
 
 const (
 	Region = "eu-central-1"
 )
-
-var tpl = templates.Must(templates.FromFile("InstanceTemplate.json"))
-
-/*
-func main() {
-
-	StartJamulus(ssh)
-}
-*/
 
 func main() {
 	fmt.Println("aws-deploy - compiled for", tsess.Owner)

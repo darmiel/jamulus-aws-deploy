@@ -1,0 +1,5 @@
+package thin
+
+func init() {
+
+}
