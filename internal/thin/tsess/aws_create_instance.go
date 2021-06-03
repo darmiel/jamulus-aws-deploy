@@ -8,8 +8,9 @@ import (
 	"strconv"
 )
 
-const (
-	Owner = "Unknown" // change with `go build -ldflags "-X tsess.Owner=<name>"`
+var (
+	Owner = "Unknown" // change with
+	//                  `go build -ldflags "-X github.com/darmiel/jamulus-aws-deploy/internal/thin/tsess.Owner=<Name>"`
 )
 
 func (s *Session) CreateInstances() (instances []*ec2.Instance, err error) {
