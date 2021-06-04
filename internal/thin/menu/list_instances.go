@@ -60,7 +60,15 @@ func (m *Menu) DisplayListInstances() {
 		i++
 	}
 
-	id := common.Select("Select action", opts)
+	// Select Deploy on start
+	// if an instance was found, select instance
+	var def interface{} = CreateNew
+	for t := range optMap {
+		def = t
+		break
+	}
+	id := common.Select("Select action", opts, def)
+
 	switch id {
 	case Refresh:
 		m.DisplayListInstances()

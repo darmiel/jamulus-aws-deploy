@@ -43,22 +43,16 @@ func JamulusRecord(ssh *sshc.SSHC, mode int, verbose bool) {
 
 	// ask which one to toggleSvr
 	if len(running) == 1 {
-		var recordit bool
-		if err := survey.AskOne(&survey.Confirm{
-			Message: "Toggle recording on Jamulus server #" + running[0],
-			Default: true,
-		}, &recordit); err != nil {
-			panic(err)
-		}
-		if !recordit {
-			return
-		}
 		toggleSvr = append(toggleSvr, running[0])
 	} else if err := survey.AskOne(&survey.MultiSelect{
 		Message: "Select servers to toggle recording",
 		Options: running,
 	}, &toggleSvr); err != nil {
 		panic(err)
+	}
+	if len(toggleSvr) <= 0 {
+		fmt.Println(common.ERRPrefix(), "No server selected to toggle recording")
+		return
 	}
 
 	for _, container := range toggleSvr {

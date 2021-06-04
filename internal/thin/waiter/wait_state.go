@@ -11,7 +11,9 @@ import (
 
 func WaitForState(ec *ec2.EC2, instanceId, state string) (i *ec2.Instance, err error) {
 	// wait until instance is running
-	sp := common.NewSpinner("🤔 Waiting for instance to be ready", "😁 Instance is running!")
+	sp := common.NewSpinner(
+		fmt.Sprintf("%s 🤔 Waiting for instance to be '%s'", common.AWSPrefix(), state),
+		fmt.Sprintf("%s 😁 Instance is '%s'", common.AWSPrefix(), state))
 	for {
 		var resp *ec2.DescribeInstancesOutput
 		if resp, err = ec.DescribeInstances(&ec2.DescribeInstancesInput{
@@ -28,11 +30,15 @@ func WaitForState(ec *ec2.EC2, instanceId, state string) (i *ec2.Instance, err e
 		if i == nil {
 			return nil, errors.New("no instance returned")
 		}
-		if *i.State.Name != ec2.InstanceStateNameRunning {
+
+		// Spinner style
+		sp.Prefix = fmt.Sprintf("%s 🤔 Waiting for instance to be '%s' [%s] ",
+			common.AWSPrefix(), state, common.GetPrettyState(i.State))
+
+		if *i.State.Name != state {
 			time.Sleep(2 * time.Second)
 			continue
 		}
-		sp.Prefix = fmt.Sprintf("🤔 Waiting for instance to be ready [%s] ", common.GetPrettyState(i.State))
 		break
 	}
 	sp.Stop()

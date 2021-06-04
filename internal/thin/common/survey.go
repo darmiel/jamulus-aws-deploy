@@ -47,10 +47,13 @@ func StringValidate(message, def string, val survey.Validator) string {
 	return data.Resp
 }
 
-func Select(message string, opts []string) (resp string) {
+func Select(message string, opts []string, def ...interface{}) (resp string) {
 	q := &survey.Select{
 		Message: message,
 		Options: opts,
+	}
+	if len(def) > 0 {
+		q.Default = def[0]
 	}
 	if err := survey.AskOne(q, &resp, survey.WithPageSize(len(opts))); err != nil {
 		log.Fatalln("error reading your answer:", err)

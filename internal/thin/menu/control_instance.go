@@ -64,13 +64,16 @@ func (m *Menu) DisplayControlInstance(instance *ec2.Instance) {
 
 	// AWS-ACTIONS
 	if action == ControlActionTerminate {
-		_, err := m.ec.TerminateInstances(&ec2.TerminateInstancesInput{
-			InstanceIds: []*string{instance.InstanceId},
-		})
-		if err != nil {
-			panic(err)
+		// confirm
+		if common.Bool("Terminate #"+*instance.InstanceId+"?", false) {
+			_, err := m.ec.TerminateInstances(&ec2.TerminateInstancesInput{
+				InstanceIds: []*string{instance.InstanceId},
+			})
+			if err != nil {
+				panic(err)
+			}
+			fmt.Println(common.AWSPrefix(), "Terminating", *instance.InstanceId, "...")
 		}
-		fmt.Println(common.AWSPrefix(), "Terminating", *instance.InstanceId, "...")
 		return
 	}
 

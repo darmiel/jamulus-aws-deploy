@@ -5,6 +5,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/darmiel/jamulus-aws-deploy/internal/thin/common"
 	"github.com/darmiel/jamulus-aws-deploy/internal/thin/menu"
 	"github.com/darmiel/jamulus-aws-deploy/internal/thin/tsess"
 	"log"
@@ -32,4 +33,10 @@ func main() {
 
 	m := menu.NewMenu(ec)
 	m.DisplayListInstances()
+
+	// catch errors
+	if a := recover(); a != nil {
+		fmt.Println(common.ERRPrefix(), "JAWS crashed:", a)
+		fmt.Println(common.ERRPrefix(), "Please try again.")
+	}
 }
