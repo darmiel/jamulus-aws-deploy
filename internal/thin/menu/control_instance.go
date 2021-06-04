@@ -10,6 +10,7 @@ import (
 )
 
 const (
+	ControlActionGoBack          = "👋 | Go Back"
 	ControlActionStartJamulus    = "JAM | 🚀 | Start Jamulus"
 	ControlActionStopJamulus     = "JAM | 🔻 | Stop Jamulus"
 	ControlActionToggleRecording = "JAM | 🎤 | Toggle Recording"
@@ -47,6 +48,7 @@ func (m *Menu) DisplayControlInstance(instance *ec2.Instance) {
 		return
 	}
 	action := common.Select("Select action", []string{
+		ControlActionGoBack,
 		ControlActionStartJamulus,
 		ControlActionStopJamulus,
 		ControlActionToggleRecording,
@@ -55,9 +57,13 @@ func (m *Menu) DisplayControlInstance(instance *ec2.Instance) {
 		ControlActionTerminate,
 	})
 
+	// OTHER ACTIONS
+	if action == ControlActionGoBack {
+		return
+	}
+
 	// AWS-ACTIONS
-	switch action {
-	case ControlActionTerminate:
+	if action == ControlActionTerminate {
 		_, err := m.ec.TerminateInstances(&ec2.TerminateInstancesInput{
 			InstanceIds: []*string{instance.InstanceId},
 		})

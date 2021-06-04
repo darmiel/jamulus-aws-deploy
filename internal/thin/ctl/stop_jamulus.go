@@ -36,13 +36,11 @@ func StopJamulus(ssh *sshc.SSHC, verbose bool) {
 			return
 		}
 		stop = append(stop, running[0])
-	} else {
-		if err := survey.AskOne(&survey.MultiSelect{
-			Message: "Select servers to stop",
-			Options: running,
-		}, &stop); err != nil {
-			panic(err)
-		}
+	} else if err := survey.AskOne(&survey.MultiSelect{
+		Message: "Select servers to stop",
+		Options: running,
+	}, &stop); err != nil {
+		panic(err)
 	}
 
 	// stop
