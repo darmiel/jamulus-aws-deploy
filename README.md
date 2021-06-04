@@ -11,3 +11,8 @@ instance via
 with one click.
 
 🐣 **Highly** WIP.
+
+## Demo
+
+https://user-images.githubusercontent.com/71837281/120845213-cb22da00-c570-11eb-98d8-da5c1256b00b.mov
+
