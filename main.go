@@ -9,6 +9,8 @@ import (
 	"github.com/darmiel/jamulus-aws-deploy/internal/thin/menu"
 	"github.com/darmiel/jamulus-aws-deploy/internal/thin/tsess"
 	"log"
+	"os"
+	"path"
 
 	// apply windows patch
 	_ "github.com/darmiel/jamulus-aws-deploy/internal/thin"
@@ -20,6 +22,9 @@ const (
 
 func main() {
 	fmt.Println("aws-deploy - compiled for", tsess.Owner)
+
+	// create data/templates dir
+	_ = os.MkdirAll(path.Join("data", "templates"), os.ModePerm)
 
 	// create session
 	sess, err := session.NewSession(&aws.Config{
