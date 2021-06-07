@@ -25,6 +25,7 @@ func main() {
 
 	// create data/templates dir
 	_ = os.MkdirAll(path.Join("data", "templates"), os.ModePerm)
+	_ = os.MkdirAll(path.Join("data", "keys"), os.ModePerm)
 
 	// create session
 	sess, err := session.NewSession(&aws.Config{
