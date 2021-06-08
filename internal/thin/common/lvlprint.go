@@ -14,6 +14,9 @@ func Profile() termenv.Profile {
 }
 
 func Color(msg, color string) termenv.Style {
+	if !strings.HasPrefix(color, "#") {
+		color = "#" + color
+	}
 	return termenv.String(msg).Foreground(Profile().Color(color))
 }
 
@@ -81,4 +84,11 @@ func PrintState(prefix interface{}, msg string) *PrintReport {
 
 func PrintSSHState(msg string) *PrintReport {
 	return PrintState(SSHPrefix(), msg)
+}
+
+func Deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

@@ -33,6 +33,7 @@ func (s *Session) CreateInstances() (instances []*ec2.Instance, err error) {
 
 	fmt.Println(common.AWSPrefix(), "🔍 Find key pair",
 		common.Color(s.Template.Instance.KeyPair.Name, "#66C2CD"))
+
 	var kp *ec2.KeyPairInfo
 	for {
 		if kp, err = s.FindKeyPair(); err != nil {
