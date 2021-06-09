@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/defaults"
 	"github.com/darmiel/jamulus-aws-deploy/internal/thin/common"
 	"os"
-	"path"
 	"strings"
 )
 
@@ -41,11 +40,11 @@ func askAWSCred() (err error) {
 	content := fmt.Sprintf(`[default]%saws_access_key_id = "%s"%saws_secret_access_key = "%s"`,
 		"\n", data.KeyID, "\n", data.AccessKey)
 
-	awsCredFile := defaults.SharedCredentialsFilename()
-	fmt.Println(common.AWSPrefix(), "Cred-File:", awsCredFile)
+	credPath := defaults.SharedCredentialsFilename()
 
-	awsCredDir := path.Dir(awsCredFile)
+	awsCredFile, awsCredDir := common.SplitPath(credPath)
 	fmt.Println(common.AWSPrefix(), "Cred-Dir:", awsCredDir)
+	fmt.Println(common.AWSPrefix(), "Cred-File:", awsCredFile)
 
 	// mkdirs
 	_ = os.MkdirAll(awsCredDir, os.ModePerm)

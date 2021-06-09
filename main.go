@@ -63,7 +63,6 @@ func main() {
 		// -> Check Credentials
 		st := sts.New(sess)
 		if caller, err = st.GetCallerIdentity(&sts.GetCallerIdentityInput{}); err != nil {
-			fmt.Println()
 			fmt.Println(common.ERRPrefix(), "Unknown identity")
 			fmt.Println(common.ERRPrefix(), "It is most likely that your login details are not correct.")
 			if !common.Bool("Do you want to enter new login data?", true) {
