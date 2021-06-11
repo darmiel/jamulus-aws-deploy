@@ -61,6 +61,9 @@ func (m *Menu) DisplayListInstances(owner string, showAll, checkJamulus bool) {
 	id := common.Select("Select action", opts, def)
 
 	switch id {
+	case Refresh:
+		break
+
 	case ShowMoreLess:
 
 		opts = []string{
@@ -99,6 +102,7 @@ func (m *Menu) DisplayListInstances(owner string, showAll, checkJamulus bool) {
 
 	case CreateNew:
 		m.DisplayDeployNew()
+
 	default:
 		instance := optMap[id]
 		if instance == nil {

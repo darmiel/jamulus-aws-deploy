@@ -44,18 +44,23 @@ func GetTemplate(instance *ec2.Instance) *templates.Template {
 
 func (m *Menu) DisplayControlInstance(instance *ec2.Instance) {
 	tpl := GetTemplate(instance)
-	if tpl == nil {
-		return
-	}
-	action := common.Select("Select action", []string{
+
+	// build options
+	opts := []string{
 		ControlActionGoBack,
-		ControlActionStartJamulus,
-		ControlActionStopJamulus,
-		ControlActionToggleRecording,
-		ControlActionGetRecordings,
-		ControlActionGetLogs,
-		ControlActionTerminate,
-	})
+	}
+
+	// template required options
+	if tpl != nil {
+		opts = append(opts, ControlActionStartJamulus,
+			ControlActionStopJamulus,
+			ControlActionToggleRecording,
+			ControlActionGetRecordings,
+			ControlActionGetLogs)
+	}
+
+	opts = append(opts, ControlActionTerminate)
+	action := common.Select("Select action", opts)
 
 	// OTHER ACTIONS
 	if action == ControlActionGoBack {
@@ -95,27 +100,32 @@ func (m *Menu) DisplayControlInstance(instance *ec2.Instance) {
 		}
 	}
 
-	// SSH-ACTIONS
-	fmt.Println(common.SSHPrefix(), "This action requires SSH")
-	ssh, err := waiter.WaitForSSHInstance(instance, tpl)
-	if err != nil {
-		panic(err)
-	}
-	switch action {
-	case ControlActionStartJamulus:
-		ctl.StartJamulus(ssh, tpl)
+	// since the actions below require a template, stop if no template has been found
+	if tpl != nil {
+		// SSH-ACTIONS
+		fmt.Println(common.SSHPrefix(), "This action requires SSH")
+		ssh, err := waiter.WaitForSSHInstance(instance, tpl)
+		if err != nil {
+			panic(err)
+		}
+		switch action {
+		case ControlActionStartJamulus:
+			ctl.StartJamulus(ssh, tpl)
 
-	case ControlActionStopJamulus:
-		ctl.StopJamulus(ssh, true)
+		case ControlActionStopJamulus:
+			ctl.StopJamulus(ssh, true)
 
-	case ControlActionToggleRecording:
-		ctl.JamulusRecord(ssh, ctl.JamulusRecModeToggle, true)
+		case ControlActionToggleRecording:
+			ctl.JamulusRecord(ssh, ctl.JamulusRecModeToggle, true)
 
-	case ControlActionGetLogs:
-		m.ListLogs(ssh, tpl)
+		case ControlActionGetLogs:
+			m.ListLogs(ssh, tpl)
 
-	case ControlActionGetRecordings:
-		m.ListRecordings(ssh, tpl)
+		case ControlActionGetRecordings:
+			m.ListRecordings(ssh, tpl)
+		}
+	} else {
+		fmt.Println(common.ERRPrefix(), "This action requires a template")
 	}
 
 	// go back to control instance
