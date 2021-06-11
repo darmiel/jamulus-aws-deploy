@@ -7,9 +7,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/darmiel/jamulus-aws-deploy/internal/thin/awswrap"
 	"github.com/darmiel/jamulus-aws-deploy/internal/thin/common"
 	"github.com/darmiel/jamulus-aws-deploy/internal/thin/menu"
-	"github.com/darmiel/jamulus-aws-deploy/internal/thin/tsess"
 	"github.com/darmiel/jamulus-aws-deploy/internal/thin/wizard"
 	"log"
 	"os"
@@ -24,7 +24,7 @@ const (
 )
 
 func main() {
-	fmt.Println("aws-deploy - compiled for", tsess.Owner)
+	fmt.Println("aws-deploy - compiled for", common.Owner)
 
 	/// FS
 
@@ -34,7 +34,7 @@ func main() {
 
 	// check if credential file exists
 	var awsCredPath = defaults.SharedCredentialsFilename()
-	if file, err := os.Stat(awsCredPath); os.IsNotExist(err) || file.IsDir() {
+	if file, err := os.Stat(awsCredPath); os.IsNotExist(err) || file == nil || file.IsDir() {
 		// Start AWS wizard
 		if err := wizard.StartAWSCredWizard(); err != nil {
 			fmt.Println(common.ERRPrefix(), err)
@@ -50,6 +50,7 @@ func main() {
 		err    error
 		sess   *session.Session
 		caller *sts.GetCallerIdentityOutput
+		st     *sts.STS
 	)
 
 	for {
@@ -61,7 +62,7 @@ func main() {
 
 		// STS - AWS Security Token Service
 		// -> Check Credentials
-		st := sts.New(sess)
+		st = sts.New(sess)
 		if caller, err = st.GetCallerIdentity(&sts.GetCallerIdentityInput{}); err != nil {
 			fmt.Println(common.ERRPrefix(), "Unknown identity")
 			fmt.Println(common.ERRPrefix(), "It is most likely that your login details are not correct.")
@@ -84,8 +85,16 @@ func main() {
 	// EC2 - Elastic Compute Cloud
 	ec := ec2.New(sess)
 
-	m := menu.NewMenu(ec)
-	m.DisplayListInstances()
+	wrap := &awswrap.AWSWrap{
+		CredPath: awsCredPath,
+		Region:   Region,
+		Config:   awsCfg,
+		STS:      st,
+		EC2:      ec,
+	}
+
+	m := menu.NewMenu(ec, wrap)
+	m.DisplayListInstances(common.Owner, false, true)
 
 	// catch errors
 	if a := recover(); a != nil {

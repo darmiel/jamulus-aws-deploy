@@ -2,58 +2,49 @@ package menu
 
 import (
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/darmiel/jamulus-aws-deploy/internal/thin/awswrap"
 	"github.com/darmiel/jamulus-aws-deploy/internal/thin/common"
 	"time"
 )
 
 type Menu struct {
 	ec *ec2.EC2
+	wr *awswrap.AWSWrap
 }
 
-func NewMenu(ec *ec2.EC2) *Menu {
-	return &Menu{ec}
+func NewMenu(ec *ec2.EC2, wr *awswrap.AWSWrap) *Menu {
+	return &Menu{ec, wr}
 }
 
 const (
-	Refresh   = "🚀 | Refresh"
-	CreateNew = "🎉 | Deploy new instance"
+	Refresh      = "🚀 | Refresh"
+	CreateNew    = "🎉 | Deploy new instance"
+	ShowMoreLess = "🔍 | Show more/less"
 )
 
-func (m *Menu) DisplayListInstances() {
+func (m *Menu) DisplayListInstances(owner string, showAll, checkJamulus bool) {
 	fmt.Println(common.AWSPrefix(), "Loading instances ...")
 
 	// load instances
-	resp, err := m.ec.DescribeInstances(&ec2.DescribeInstancesInput{
-		Filters: []*ec2.Filter{
-			{
-				Name:   aws.String("tag-key"),
-				Values: []*string{aws.String(common.JamulusDefHeader)},
-			},
-			{
-				Name:   aws.String("instance-state-name"),
-				Values: aws.StringSlice([]string{"pending", "running", "shutting-down", "stopping", "stopped"}),
-			},
-		},
-	})
+	resp, err := m.wr.FindInstances(owner, showAll, checkJamulus)
 	if err != nil {
 		panic(err)
 	}
 
 	// make options
 	optMap := make(map[string]*ec2.Instance)
-	for _, r := range resp.Reservations {
-		for _, i := range r.Instances {
-			title := fmt.Sprintf("💻 | [%s] %s (%s) [running for %s]",
-				common.GetPrettyState(i.State), *i.InstanceId, *i.PublicIpAddress, time.Since(*i.LaunchTime))
-			optMap[title] = i
-		}
+	for _, i := range resp {
+		title := fmt.Sprintf("💻 | [%s] %s (%s) [running for %s]",
+			common.GetPrettyState(i.State), *i.InstanceId, *i.PublicIpAddress, time.Since(*i.LaunchTime))
+		optMap[title] = i
 	}
 
-	opts := make([]string, len(optMap)+2)
+	opts := make([]string, len(optMap)+3)
 	opts[0] = Refresh
-	opts[1] = CreateNew
+	opts[1] = ShowMoreLess
+	opts[2] = CreateNew
 	i := 2
 	for k := range optMap {
 		opts[i] = k
@@ -70,8 +61,42 @@ func (m *Menu) DisplayListInstances() {
 	id := common.Select("Select action", opts, def)
 
 	switch id {
-	case Refresh:
-		m.DisplayListInstances()
+	case ShowMoreLess:
+
+		opts = []string{
+			"🐣 | Show only my own Jamulus instances",
+			"🐣 | Show all my own instances",
+			"🏘 | Show all Jamulus instances",
+			"🏘 | Show all instances",
+		}
+
+		q := &survey.Select{
+			Message: "Toggle filters",
+			Options: opts,
+			Default: opts[0],
+		}
+
+		if err = survey.AskOne(q, &id); err != nil {
+			panic(err)
+		}
+
+		switch id {
+		case opts[0]:
+			owner = common.Owner
+			checkJamulus = true
+			showAll = false
+		case opts[1]:
+			owner = common.Owner
+			checkJamulus = false
+			showAll = false
+		case opts[2]:
+			owner = ""
+			checkJamulus = true
+			showAll = false
+		case opts[3]:
+			showAll = true
+		}
+
 	case CreateNew:
 		m.DisplayDeployNew()
 	default:
@@ -82,5 +107,5 @@ func (m *Menu) DisplayListInstances() {
 		m.DisplayControlInstance(instance)
 	}
 
-	m.DisplayListInstances()
+	m.DisplayListInstances(owner, showAll, checkJamulus)
 }

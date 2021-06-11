@@ -42,7 +42,7 @@ func askAWSCred() (err error) {
 
 	credPath := defaults.SharedCredentialsFilename()
 
-	awsCredFile, awsCredDir := common.SplitPath(credPath)
+	awsCredDir, awsCredFile := common.SplitPath(credPath)
 	fmt.Println(common.AWSPrefix(), "Cred-Dir:", awsCredDir)
 	fmt.Println(common.AWSPrefix(), "Cred-File:", awsCredFile)
 
@@ -50,7 +50,7 @@ func askAWSCred() (err error) {
 	_ = os.MkdirAll(awsCredDir, os.ModePerm)
 
 	// write to file
-	err = os.WriteFile(awsCredFile, []byte(content), os.ModePerm)
+	err = os.WriteFile(credPath, []byte(content), os.ModePerm)
 	return
 }
 

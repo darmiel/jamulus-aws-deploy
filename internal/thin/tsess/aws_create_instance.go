@@ -8,16 +8,12 @@ import (
 	"strconv"
 )
 
-var (
-	Owner = "Unknown" // change with
-	//                  `go build -ldflags "-X github.com/darmiel/jamulus-aws-deploy/internal/thin/tsess.Owner=<Name>"`
-)
-
 func (s *Session) CreateInstances() (instances []*ec2.Instance, err error) {
 	var sg *ec2.SecurityGroup
 
 	fmt.Println(common.AWSPrefix(), "🔍 Find security group",
 		common.Color(s.Template.Instance.SecurityGroupName, "#66C2CD"))
+
 	for {
 		if sg, err = s.FindSecurityGroup(); err != nil {
 			if err == ErrSecurityGroupNotFound {
@@ -64,7 +60,7 @@ func (s *Session) CreateInstances() (instances []*ec2.Instance, err error) {
 		&common.JamulusDefTag,
 		{
 			Key:   aws.String(common.JamulusOwnerHeader),
-			Value: aws.String(Owner),
+			Value: aws.String(common.Owner),
 		},
 	}
 
