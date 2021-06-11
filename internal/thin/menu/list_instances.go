@@ -45,7 +45,7 @@ func (m *Menu) DisplayListInstances(owner string, showAll, checkJamulus bool) {
 	opts[0] = Refresh
 	opts[1] = ShowMoreLess
 	opts[2] = CreateNew
-	i := 2
+	i := 3
 	for k := range optMap {
 		opts[i] = k
 		i++
