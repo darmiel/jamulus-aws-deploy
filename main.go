@@ -24,7 +24,7 @@ const (
 )
 
 func main() {
-	fmt.Println("aws-deploy - compiled for", common.Owner)
+	fmt.Println("⭐️ aws-deploy - compiled for", common.Owner)
 
 	/// FS
 
@@ -80,7 +80,7 @@ func main() {
 
 	// say hello 👋
 	fmt.Println(common.AWSPrefix(), "Logged in with user",
-		common.Color(common.Deref(caller.UserId), "66C2CD"))
+		common.Color(common.DeRef(caller.UserId), "66C2CD"))
 
 	// EC2 - Elastic Compute Cloud
 	ec := ec2.New(sess)

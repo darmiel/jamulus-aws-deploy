@@ -36,8 +36,10 @@ func (m *Menu) DisplayListInstances(owner string, showAll, checkJamulus bool) {
 	// make options
 	optMap := make(map[string]*ec2.Instance)
 	for _, i := range resp {
-		title := fmt.Sprintf("💻 | [%s] %s (%s) [running for %s]",
-			common.GetPrettyState(i.State), *i.InstanceId, *i.PublicIpAddress, time.Since(*i.LaunchTime))
+		title := fmt.Sprintf("💻 | [%s] %s (%s) [running for %s] (Owner: %s)",
+			common.GetPrettyState(i.State), *i.InstanceId, *i.PublicIpAddress, time.Since(*i.LaunchTime),
+			common.EmptyDef(awswrap.GetInstanceOwner(i), "$unknown"))
+
 		optMap[title] = i
 	}
 

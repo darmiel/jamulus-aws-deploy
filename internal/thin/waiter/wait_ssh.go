@@ -20,7 +20,8 @@ func WaitForSSHInstance(instance *ec2.Instance, tpl *templates.Template) (c *ssh
 
 func WaitForSSH(user, addr string, auth goph.Auth) (c *sshc.SSHC, err error) {
 	// wait until instance is running
-	sp := common.NewSpinner(common.SSHPrefix().String()+" 🤔 Waiting for SSH to be ready",
+	prefix := common.SSHPrefix().String() + " 🤔 Waiting for SSH to be ready"
+	sp := common.NewSpinner(prefix,
 		common.SSHPrefix().String()+" 😁 SSH available!")
 	try := 1
 
@@ -28,7 +29,7 @@ func WaitForSSH(user, addr string, auth goph.Auth) (c *sshc.SSHC, err error) {
 	for {
 		if client, err = goph.NewUnknown(user, addr, auth); err != nil {
 			// TODO: Check error
-			fmt.Printf("%s (t=%d) wait err(%T): %v", common.ERRPrefix(), try, err, err)
+			sp.Prefix = fmt.Sprintf("%s | (t=%d) wait err(%T): %v", prefix, try, err, err)
 			try++
 			time.Sleep(2 * time.Second)
 			continue
